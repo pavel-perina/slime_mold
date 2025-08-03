@@ -270,11 +270,11 @@ int main() {
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::Text("Color Palette");
-        ImGui::ColorEdit3("Start", &paletteA.r);
-        ImGui::ColorEdit3("Mid", &paletteB.r);
-        ImGui::ColorEdit3("End", &paletteC.r);
-        ImGui::SliderFloat("Midpoint", &palette_mid, 0.0f, 1.0f);
-
+        ImGui::ColorEdit3("Start", &paletteA.r, ImGuiColorEditFlags_NoLabel);
+        ImGui::ColorEdit3("Midpoint", &paletteB.r, ImGuiColorEditFlags_NoLabel);
+        ImGui::ColorEdit3("Endpoint", &paletteC.r, ImGuiColorEditFlags_NoLabel);
+        ImGui::Text("Palette Midpoint");
+        ImGui::SliderFloat("##palette_mid", &palette_mid, 0.0f, 1.0f);
 
         ImGui::PopItemWidth();
         ImGui::End();
@@ -286,11 +286,11 @@ int main() {
         SDL_RenderClear(renderer);
 
         // Define the destination rectangle for the main simulation area
-        SDL_FRect mainRect = { 0, 0, WIDTH, HEIGHT };
+        const SDL_FRect mainRect = { 0, 0, WIDTH, HEIGHT };
 
         // Upload pixel data and render simulation
-        SDL_UpdateTexture(texture, NULL, pixels.data(), WIDTH * 3);
-        SDL_RenderTexture(renderer, texture, NULL, &mainRect);
+        SDL_UpdateTexture(texture, nullptr, pixels.data(), WIDTH * 3);
+        SDL_RenderTexture(renderer, texture, nullptr, &mainRect);
         
         // Render ImGui on top
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
