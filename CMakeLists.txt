@@ -5,9 +5,11 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set default build type to Release
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified.")
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
 endif()
+
 
 find_package(SDL3 REQUIRED)
 
@@ -25,7 +27,11 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer3.cpp
 )
 
-add_executable(slime_mold src/slimemold.cpp)
+add_executable(slime_mold 
+    src/slimemold.cpp 
+    src/colors.cpp 
+    )
+
 # Add ImGui sources to your existing target
 target_sources(slime_mold PRIVATE ${IMGUI_SOURCES})
 

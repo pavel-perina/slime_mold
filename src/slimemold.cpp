@@ -4,6 +4,8 @@
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 #endif
 
+#include "colors.h"
+
 #include <SDL3/SDL.h>
 
 #include <imgui.h>
@@ -28,11 +30,15 @@ constexpr int   TOTAL_WIDTH = SIDEPANEL_WIDTH + WIDTH;
 constexpr int   NUM_AGENTS = 250000;
 
 float sensor_angle = 0.5f;
-float sensor_dist = 5.0f;
-float turn_angle = 0.3f;
-float step_size = 1.0f;
-float evaporate = 0.99f;
+float sensor_dist  = 5.0f;
+float turn_angle   = 0.3f;
+float step_size    = 1.0f;
+float evaporate    = 0.95f;
 
+ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
+ColorRGB paletteB = { 0.87f, 0.85f, 0.65f };
+ColorRGB paletteC = { 0.54f, 0.99f, 0.77f };
+float palette_mid = 0.5f;
 
 struct Agent {
     float x, y, dx, dy;
@@ -134,13 +140,38 @@ void diffuse() {
     for (auto &v : field) v *= evaporate;
 }
 
+void clearField() {
+    for (auto& v : field) v = 0.0f;
+}
+
 void renderToPixels(std::vector<uint8_t> &pixels) {
+    // Prepare palette
+    constexpr size_t PALETTE_SIZE = 1024;
+    size_t mid = (size_t)(palette_mid * PALETTE_SIZE);
+    auto g1 = LCHGradient2(paletteA, paletteB, mid);
+    auto g2 = LCHGradient2(paletteB, paletteC, PALETTE_SIZE - mid);
+    std::vector<uint8_t> palette(PALETTE_SIZE * 3);
+    for (size_t i = 0; i < PALETTE_SIZE; i++) {
+        if (i < mid) {
+            palette[i * 3]     = g1[i].r * 255.0f;
+            palette[i * 3 + 1] = g1[i].g * 255.0f;
+            palette[i * 3 + 2] = g1[i].b * 255.0f;
+        }
+        else {
+            size_t j = i - mid;
+            palette[i * 3]     = g2[j].r * 255.0f;
+            palette[i * 3 + 1] = g2[j].g * 255.0f;
+            palette[i * 3 + 2] = g2[j].b * 255.0f;
+        }
+    }
+
+    constexpr float k = 10.0f * PALETTE_SIZE / 256.0f;
     for (int i = 0; i < WIDTH * HEIGHT; i++) {
-        uint8_t c = (uint8_t)std::min(field[i] * 10.0f, 255.0f);
+        int c = std::min(field[i] * k , static_cast<float>(PALETTE_SIZE-1));
         //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
-        pixels[i * 3 + 0] = c; // Blue
-        pixels[i * 3 + 1] = 0; // Green
-        pixels[i * 3 + 2] = c; // Red
+        pixels[i * 3 + 0] = palette[c * 3 + 0];
+        pixels[i * 3 + 1] = palette[c * 3 + 1];
+        pixels[i * 3 + 2] = palette[c * 3 + 2];
     }
 }
 
@@ -190,6 +221,7 @@ int main() {
     std::vector<uint8_t> pixels(WIDTH * HEIGHT * 3, 0);
 
     bool done = false;
+    uint64_t last_counter = 0;
     while (!done) {
         updateAgents();
         diffuse();
@@ -200,6 +232,11 @@ int main() {
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
+        uint64_t current_counter = SDL_GetPerformanceCounter();
+        float delta_time = (current_counter - last_counter) / (float)SDL_GetPerformanceFrequency();
+        float fps = 1.0f / delta_time;
+        last_counter = current_counter;
+
         // Position the sidebar on the right side
         ImGui::SetNextWindowPos(ImVec2(WIDTH, 0));
         ImGui::SetNextWindowSize(ImVec2(SIDEPANEL_WIDTH, HEIGHT));
@@ -209,13 +246,16 @@ int main() {
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoTitleBar);
         ImGui::PushItemWidth(-1); // Use full available width for sliders
+        ImGui::Spacing();
+        ImGui::Text("FPS %.1f", fps);
+
         ImGui::Text("Simulation Parameters");
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::Text("Sensor Angle");
         ImGui::SliderFloat("##sensor_angle", &sensor_angle, 0.0f, 2.0f);
         ImGui::Text("Sensor Distance");
-        ImGui::SliderFloat("##sensor_dist", &sensor_dist, 1.0f, 20.0f);
+        ImGui::SliderFloat("##sensor_dist", &sensor_dist, 1.0f, 12.0f);
         ImGui::Text("Turn Angle");
         ImGui::SliderFloat("##turn_angle", &turn_angle, 0.0f, 1.0f);
         ImGui::Text("Step Size");
@@ -223,9 +263,19 @@ int main() {
         ImGui::Text("Evaporation");
         ImGui::SliderFloat("##evaporate", &evaporate, 0.5f, 0.99f);
         ImGui::Spacing();
-        if (ImGui::Button("Reset Agents")) {
+        if (ImGui::Button("Reset")) {
             resetAgents();
+            clearField();
         }
+        ImGui::Separator();
+        ImGui::Spacing();
+        ImGui::Text("Color Palette");
+        ImGui::ColorEdit3("Start", &paletteA.r);
+        ImGui::ColorEdit3("Mid", &paletteB.r);
+        ImGui::ColorEdit3("End", &paletteC.r);
+        ImGui::SliderFloat("Midpoint", &palette_mid, 0.0f, 1.0f);
+
+
         ImGui::PopItemWidth();
         ImGui::End();
 
