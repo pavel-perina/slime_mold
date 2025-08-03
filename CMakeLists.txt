@@ -28,8 +28,9 @@ set(IMGUI_SOURCES
 )
 
 add_executable(slime_mold 
-    src/slimemold.cpp 
-    src/colors.cpp 
+    src/slimemold.cpp
+    src/colors.cpp
+    src/presets.cpp
     )
 
 # Add ImGui sources to your existing target

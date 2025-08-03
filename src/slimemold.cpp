@@ -5,6 +5,7 @@
 #endif
 
 #include "colors.h"
+#include "presets.h"
 
 #include <SDL3/SDL.h>
 
@@ -34,6 +35,12 @@ float sensor_dist  = 5.0f;
 float turn_angle   = 0.3f;
 float step_size    = 1.0f;
 float evaporate    = 0.95f;
+
+int selectedPreset   = 0;
+int selectedPalette = 0;
+const std::vector<AgentPreset>   presets  = presetAgents();
+const std::vector<PalettePreset> palettes = presetPalettes();
+
 
 ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
 ColorRGB paletteB = { 0.87f, 0.85f, 0.65f };
@@ -202,6 +209,23 @@ void resetAgents() {
     }
 }
 
+void updateAgent(int idx) {
+    sensor_angle = presets[idx].sensor_angle;
+    sensor_dist  = presets[idx].sensor_dist;
+    evaporate    = presets[idx].evaporate;
+    step_size    = presets[idx].step_size;
+    turn_angle   = presets[idx].turn_angle;
+    palette_mid  = presets[idx].palette_mid;
+}
+
+void updatePalette(int idx)
+{
+    paletteA = palettes[idx].paletteA;
+    paletteB = palettes[idx].paletteB;
+    paletteC = palettes[idx].paletteC;
+
+}
+
 int main() {
     resetAgents();
 
@@ -275,6 +299,35 @@ int main() {
         ImGui::ColorEdit3("Endpoint", &paletteC.r, ImGuiColorEditFlags_NoLabel);
         ImGui::Text("Palette Midpoint");
         ImGui::SliderFloat("##palette_mid", &palette_mid, 0.0f, 1.0f);
+
+        ImGui::Separator();
+        if (ImGui::BeginCombo("Behavior", presets[selectedPreset].name.data())) {
+            for (int i = 0; i < presets.size(); i++) {
+                bool is_selected = (selectedPreset == i);
+                if (ImGui::Selectable(presets[i].name.data(), is_selected)) {
+                    selectedPreset = i;
+                    updateAgent(selectedPreset);
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        if (ImGui::BeginCombo("Palette", palettes[selectedPalette].name.data())) {
+            for (int i = 0; i < palettes.size(); i++) {
+                bool is_selected = (selectedPalette == i);
+                if (ImGui::Selectable(palettes[i].name.data(), is_selected)) {
+                    selectedPalette = i;
+                    updatePalette(selectedPalette);
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
 
         ImGui::PopItemWidth();
         ImGui::End();
