@@ -23,6 +23,8 @@
 
 constexpr int   WIDTH = 640;
 constexpr int   HEIGHT = 480;
+constexpr int   SIDEPANEL_WIDTH = 224;
+constexpr int   TOTAL_WIDTH = SIDEPANEL_WIDTH + WIDTH;
 constexpr int   NUM_AGENTS = 250000;
 
 float sensor_angle = 0.5f;
@@ -135,6 +137,7 @@ void diffuse() {
 void renderToPixels(std::vector<uint8_t> &pixels) {
     for (int i = 0; i < WIDTH * HEIGHT; i++) {
         uint8_t c = (uint8_t)std::min(field[i] * 10.0f, 255.0f);
+        //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
         pixels[i * 3 + 0] = c; // Blue
         pixels[i * 3 + 1] = 0; // Green
         pixels[i * 3 + 2] = c; // Red
@@ -172,9 +175,9 @@ int main() {
     resetAgents();
 
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window *window = SDL_CreateWindow("Slime Mold", WIDTH, HEIGHT, 0);
+    SDL_Window   *window   = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, HEIGHT, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL);
-    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
+    SDL_Texture  *texture  = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -184,7 +187,6 @@ int main() {
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer3_Init(renderer);
 
-
     std::vector<uint8_t> pixels(WIDTH * HEIGHT * 3, 0);
 
     bool done = false;
@@ -193,38 +195,56 @@ int main() {
         diffuse();
         renderToPixels(pixels);
 
+        // Prepare a new frame
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Parameters");
-        ImGui::SliderFloat("Sensor Angle", &sensor_angle, 0.0f, 2.0f);
-        ImGui::SliderFloat("Sensor Distance", &sensor_dist, 1.0f, 20.0f);
-        ImGui::SliderFloat("Turn Angle", &turn_angle, 0.0f, 1.0f);
-        ImGui::SliderFloat("Step Size", &step_size, 0.1f, 5.0f);
-        ImGui::SliderFloat("Evaporation", &evaporate, 0.5f, 0.99f);
+        // Position the sidebar on the right side
+        ImGui::SetNextWindowPos(ImVec2(WIDTH, 0));
+        ImGui::SetNextWindowSize(ImVec2(SIDEPANEL_WIDTH, HEIGHT));
+        ImGui::Begin("Parameters", nullptr,
+            ImGuiWindowFlags_NoResize | 
+            ImGuiWindowFlags_NoMove | 
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoTitleBar);
+        ImGui::PushItemWidth(-1); // Use full available width for sliders
+        ImGui::Text("Simulation Parameters");
+        ImGui::Separator();
+        ImGui::Spacing();
+        ImGui::Text("Sensor Angle");
+        ImGui::SliderFloat("##sensor_angle", &sensor_angle, 0.0f, 2.0f);
+        ImGui::Text("Sensor Distance");
+        ImGui::SliderFloat("##sensor_dist", &sensor_dist, 1.0f, 20.0f);
+        ImGui::Text("Turn Angle");
+        ImGui::SliderFloat("##turn_angle", &turn_angle, 0.0f, 1.0f);
+        ImGui::Text("Step Size");
+        ImGui::SliderFloat("##step_size", &step_size, 0.1f, 5.0f);
+        ImGui::Text("Evaporation");
+        ImGui::SliderFloat("##evaporate", &evaporate, 0.5f, 0.99f);
+        ImGui::Spacing();
         if (ImGui::Button("Reset Agents")) {
             resetAgents();
         }
+        ImGui::PopItemWidth();
         ImGui::End();
 
         ImGui::Render();
 
-        // Update window
-        SDL_UpdateTexture(texture, NULL, pixels.data(), WIDTH * 3);
+        // Clear canvas with a background color (dark gray background)
+        SDL_SetRenderDrawColor(renderer, 40, 40, 40, 255);
         SDL_RenderClear(renderer);
-        SDL_RenderTexture(renderer, texture, NULL, NULL);
-        
 
+        // Define the destination rectangle for the main simulation area
+        SDL_FRect mainRect = { 0, 0, WIDTH, HEIGHT };
+
+        // Upload pixel data and render simulation
+        SDL_UpdateTexture(texture, NULL, pixels.data(), WIDTH * 3);
+        SDL_RenderTexture(renderer, texture, NULL, &mainRect);
+        
+        // Render ImGui on top
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
-        /*
-        // Save every 10 frames
-        if (frame % 10 == 0) {
-            char filename[64];
-            sprintf(filename, "frame_%04d.tga", frame);
-            saveTGA(filename, pixels);
-        }*/
 
         // Handle quit
         SDL_Event e;
@@ -238,7 +258,6 @@ int main() {
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
-
 
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
