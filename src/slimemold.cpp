@@ -54,20 +54,18 @@ struct Agent {
 std::vector<Agent> agents(NUM_AGENTS);
 std::vector<float> field(WIDTH * HEIGHT, 0.0f);
 
-inline int idx(int x, int y) {
-    return (y % HEIGHT) * WIDTH + (x % WIDTH);
-}
-
 float sampleField(float x, float y) {
     int xi = ((int)(x+0.5f) + WIDTH) % WIDTH;
     int yi = ((int)(y+0.5f) + HEIGHT) % HEIGHT;
-    return field[idx(xi, yi)];
+    int idx = yi * WIDTH + xi;
+    return field[idx];
 }
 
 void deposit(Agent &a) {
     int xi = ((int)(a.x+0.5f) + WIDTH) % WIDTH;
     int yi = ((int)(a.y+0.5f) + HEIGHT) % HEIGHT;
-    field[idx(xi, yi)] += 1.0f;
+    int idx = yi * WIDTH + xi;
+    field[idx] += 1.0f;
 }
 
 inline void rotate(float& dx, float& dy, float cos_a, float sin_a) {
