@@ -20,6 +20,8 @@
 #include <cstring>
 #include <ctime>
 
+#include <immintrin.h>
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -29,6 +31,7 @@ constexpr int   HEIGHT = 480;
 constexpr int   SIDEPANEL_WIDTH = 224;
 constexpr int   TOTAL_WIDTH = SIDEPANEL_WIDTH + WIDTH;
 constexpr int   NUM_AGENTS = 250000;
+constexpr size_t PALETTE_SIZE = 1024;
 
 float sensor_angle = 0.5f;
 float sensor_dist  = 5.0f;
@@ -142,58 +145,106 @@ void updateAgents() {
 
 void diffuse() {
     // Evaporation only for simplicity
-    for (auto &v : field) v *= evaporate;
+    const size_t count = field.size();
+    constexpr size_t avxWidth = 8; // 8 floats per register
+    float* data = field.data();
+    const __m256 evaporateVec = _mm256_set1_ps(evaporate);
+    size_t i = 0;
+    const size_t avxCount = (count / avxWidth) * avxWidth;
+    for (; i < avxCount; i+=avxWidth)
+    {
+        __m256 values = _mm256_loadu_ps(&data[i]);
+        values = _mm256_mul_ps(values, evaporateVec);
+        _mm256_storeu_ps(&data[i], values);
+    }
+    // Handle remaining elements (0-7 elements)
+    for (; i < count; ++i) {
+        data[i] *= evaporate;
+    }
+
+#if 0
+    for (auto &v : field) 
+        v *= evaporate;
+
+#else
+#endif
 }
 
 void clearField() {
-    for (auto& v : field) v = 0.0f;
+    for (auto& v : field) 
+        v = 0.0f;
 }
 
-void renderToPixels(std::vector<uint8_t> &pixels) {
-    // Prepare palette
-    constexpr size_t PALETTE_SIZE = 1024;
+void renderToPixelsAvx(std::vector<uint8_t>& pixels)
+{
     size_t mid = (size_t)(palette_mid * PALETTE_SIZE);
     auto g1 = LCHGradient2(paletteA, paletteB, mid);
     auto g2 = LCHGradient2(paletteB, paletteC, PALETTE_SIZE - mid);
-    std::vector<uint8_t> palette(PALETTE_SIZE * 3);
+    std::vector<uint8_t> palette(PALETTE_SIZE * 4);
     for (size_t i = 0; i < PALETTE_SIZE; i++) {
+        palette[i * 4] = 255.0f;
         if (i < mid) {
-            palette[i * 3]     = g1[i].r * 255.0f;
-            palette[i * 3 + 1] = g1[i].g * 255.0f;
-            palette[i * 3 + 2] = g1[i].b * 255.0f;
+            palette[i * 4 + 1] = g1[i].r * 255.0f;
+            palette[i * 4 + 2] = g1[i].g * 255.0f;
+            palette[i * 4 + 3] = g1[i].b * 255.0f;
         }
         else {
             size_t j = i - mid;
-            palette[i * 3]     = g2[j].r * 255.0f;
-            palette[i * 3 + 1] = g2[j].g * 255.0f;
-            palette[i * 3 + 2] = g2[j].b * 255.0f;
+            palette[i * 4 + 1] = g2[j].r * 255.0f;
+            palette[i * 4 + 2] = g2[j].g * 255.0f;
+            palette[i * 4 + 3] = g2[j].b * 255.0f;
         }
     }
-
+    /////////
     constexpr float k = 10.0f * PALETTE_SIZE / 256.0f;
-    for (int i = 0; i < WIDTH * HEIGHT; i++) {
-        int c = std::min(field[i] * k , static_cast<float>(PALETTE_SIZE-1));
-        //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
-        pixels[i * 3 + 0] = palette[c * 3 + 0];
-        pixels[i * 3 + 1] = palette[c * 3 + 1];
-        pixels[i * 3 + 2] = palette[c * 3 + 2];
+    const int count = WIDTH * HEIGHT;
+    const float* fieldData = field.data();
+
+    const __m256 kVec = _mm256_set1_ps(k);
+    const __m256 maxIdx = _mm256_set1_ps(static_cast<float>(PALETTE_SIZE - 1));
+
+    constexpr size_t avxWidth = 8;
+    size_t i = 0;
+
+    // Process 8 pixels at a time
+    for (; i + avxWidth <= count; i += avxWidth) {
+        // Load 8 field values
+        __m256 fieldVals = _mm256_loadu_ps(&fieldData[i]);
+
+        // Scale and clamp
+        fieldVals = _mm256_mul_ps(fieldVals, kVec);
+        fieldVals = _mm256_min_ps(fieldVals, maxIdx);
+
+        // Convert to integers (palette indices)
+        __m256i indices = _mm256_cvtps_epi32(fieldVals);
+
+        // Extract indices for palette lookup
+        alignas(32) int idx[8];
+        _mm256_store_si256(reinterpret_cast<__m256i*>(idx), indices);
+
+        // Simple 32-bit copies (much faster than 3-byte RGB)
+
+        uint8_t* pPal = palette.data();
+        uint8_t* pPix = pixels.data();
+#if 0
+        for (int j = 0; j < 8; ++j) {
+            int pOffset = idx[j] * 4;
+            pixels[(i + j) * 4 + 0] = pPal[pOffset + 0];
+            pixels[(i + j) * 4 + 1] = pPal[pOffset + 1];
+            pixels[(i + j) * 4 + 2] = pPal[pOffset + 2];
+            pixels[(i + j) * 4 + 3] = pPal[pOffset + 3];
+        }
+#else
+        __m256i colors = _mm256_i32gather_epi32(
+            reinterpret_cast<const int*>(palette.data()),  // base pointer (cast to int*)
+            indices,                                 // the 8 indices
+            4                                       // scale: each index * 4 bytes
+        );
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pPix + i * 4), colors);
+#endif
     }
-}
 
-void saveTGA(const char *filename, const std::vector<uint8_t> &pixels) {
-    FILE *f = fopen(filename, "wb");
-    if (!f) return;
 
-    uint8_t header[18] = {};
-    header[2] = 2; // uncompressed true-color
-    header[12] = WIDTH & 0xFF;
-    header[13] = (WIDTH >> 8) & 0xFF;
-    header[14] = HEIGHT & 0xFF;
-    header[15] = (HEIGHT >> 8) & 0xFF;
-    header[16] = 24; // bits per pixel
-    fwrite(header, 1, 18, f);
-    fwrite(pixels.data(), 1, pixels.size(), f);
-    fclose(f);
 }
 
 void resetAgents() {
@@ -230,7 +281,7 @@ int main() {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window   *window   = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, HEIGHT, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL);
-    SDL_Texture  *texture  = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
+    SDL_Texture  *texture  = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB32, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -240,14 +291,14 @@ int main() {
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer3_Init(renderer);
 
-    std::vector<uint8_t> pixels(WIDTH * HEIGHT * 3, 0);
+    std::vector<uint8_t> pixels(WIDTH * HEIGHT * 4, 0);
 
     bool done = false;
     uint64_t last_counter = 0;
     while (!done) {
         updateAgents();
         diffuse();
-        renderToPixels(pixels);
+        renderToPixelsAvx(pixels);
 
         // Prepare a new frame
         ImGui_ImplSDLRenderer3_NewFrame();
@@ -340,7 +391,7 @@ int main() {
         const SDL_FRect mainRect = { 0, 0, WIDTH, HEIGHT };
 
         // Upload pixel data and render simulation
-        SDL_UpdateTexture(texture, nullptr, pixels.data(), WIDTH * 3);
+        SDL_UpdateTexture(texture, nullptr, pixels.data(), WIDTH * 4);
         SDL_RenderTexture(renderer, texture, nullptr, &mainRect);
         
         // Render ImGui on top
