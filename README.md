@@ -35,6 +35,8 @@ More is in my [blog article](https://www.pavelp.cz/posts/eng-random-chatgpt-code
   ```
   .\conan_install.bat
   ```
+  * NOTE: If Conan is not installed, install it using `py -m pip install conan`
+  * NOTE: If Python is not in file path, default profile does not exist and remote points to company's repo, this command likely solves everything :-) `C:\Users\[username]\AppData\Local\Programs\Python\Python312\Scripts\conan.exe install . --build=missing -s build_type=RelWithDebInfo --profile:all=custom-msvc2022 --remote=conancenter`
 * Open folder in Visual Studio 2022
   * CMake will run automatically
 * Choose build type `conan-relwithdebinfo` or `conan-debug`
@@ -42,3 +44,7 @@ More is in my [blog article](https://www.pavelp.cz/posts/eng-random-chatgpt-code
 * Build it (build all or just `slime_mold.exe`)
 * Debug -> Start (or start without debugging)
 * Enjoy :-)
+
+Alternative to running Visual Studio:
+* `cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_TOOLCHAIN_FILE="build\generators\conan_toolchain.cmake"`
+* `.\build\RelWithDebInfo\slime_mold.exe`

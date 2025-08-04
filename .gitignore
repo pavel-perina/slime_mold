@@ -3,3 +3,4 @@ build/
 out/
 enc_temp_folder/
 *.bak
+imgui.ini
