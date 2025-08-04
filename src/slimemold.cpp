@@ -4,6 +4,8 @@
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 #endif
 
+#define USE_AVX 1
+
 #include "colors.h"
 #include "presets.h"
 
@@ -20,12 +22,15 @@
 #include <cstring>
 #include <ctime>
 
+#if USE_AVX
 #include <immintrin.h>
+#endif 
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
+// WARNING: WIDTH*HEIGHT must be divisible by 8 due to vectorization code
 constexpr int   WIDTH = 640;
 constexpr int   HEIGHT = 480;
 constexpr int   SIDEPANEL_WIDTH = 224;
@@ -145,37 +150,30 @@ void updateAgents() {
 
 void diffuse() {
     // Evaporation only for simplicity
+    for (auto& v : field)
+        v *= evaporate;
+}
+
+#if USE_AVX
+void diffuseAvx() {
     const size_t count = field.size();
     constexpr size_t avxWidth = 8; // 8 floats per register
     float* data = field.data();
     const __m256 evaporateVec = _mm256_set1_ps(evaporate);
-    size_t i = 0;
-    const size_t avxCount = (count / avxWidth) * avxWidth;
-    for (; i < avxCount; i+=avxWidth)
-    {
-        __m256 values = _mm256_loadu_ps(&data[i]);
+    for (size_t i = 0; i < count; i += avxWidth) {
+        __m256 values = _mm256_loadu_ps(data + i);
         values = _mm256_mul_ps(values, evaporateVec);
         _mm256_storeu_ps(&data[i], values);
     }
-    // Handle remaining elements (0-7 elements)
-    for (; i < count; ++i) {
-        data[i] *= evaporate;
-    }
-
-#if 0
-    for (auto &v : field) 
-        v *= evaporate;
-
-#else
-#endif
 }
+#endif
 
 void clearField() {
     for (auto& v : field) 
         v = 0.0f;
 }
 
-void renderToPixelsAvx(std::vector<uint8_t>& pixels)
+std::vector<uint8_t> preparePalette()
 {
     size_t mid = (size_t)(palette_mid * PALETTE_SIZE);
     auto g1 = LCHGradient2(paletteA, paletteB, mid);
@@ -195,57 +193,55 @@ void renderToPixelsAvx(std::vector<uint8_t>& pixels)
             palette[i * 4 + 3] = g2[j].b * 255.0f;
         }
     }
-    /////////
-    constexpr float k = 10.0f * PALETTE_SIZE / 256.0f;
-    const int count = WIDTH * HEIGHT;
-    const float* fieldData = field.data();
+    return palette;
+}
 
-    const __m256 kVec = _mm256_set1_ps(k);
+
+void renderToPixels(std::vector<uint8_t>& pixels)
+{
+    const auto palette = preparePalette();
+    constexpr float k = 10.0f * PALETTE_SIZE / 256.0f;
+    const uint32_t* paletteU32 = reinterpret_cast<const uint32_t*>(palette.data());
+    uint32_t* pixelsU32 = reinterpret_cast<uint32_t*>(pixels.data());
+    for (int i = 0; i < WIDTH * HEIGHT; i++) {
+        int c = std::min(field[i] * k, static_cast<float>(PALETTE_SIZE - 1));
+        //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
+        pixelsU32[i] = paletteU32[c];
+    }
+}
+
+
+void renderToPixelsAvx(std::vector<uint8_t>& pixels)
+{
+    const auto palette = preparePalette();
+
+    // Initialize scale and clamp
+    const __m256 kVec   = _mm256_set1_ps(10.0f * PALETTE_SIZE / 256.0f);
     const __m256 maxIdx = _mm256_set1_ps(static_cast<float>(PALETTE_SIZE - 1));
 
-    constexpr size_t avxWidth = 8;
-    size_t i = 0;
-
     // Process 8 pixels at a time
-    for (; i + avxWidth <= count; i += avxWidth) {
+    constexpr size_t avxWidth = 8;
+    const float* fieldData = field.data();
+    for (size_t i = 0; i < WIDTH * HEIGHT; i += avxWidth) {
         // Load 8 field values
-        __m256 fieldVals = _mm256_loadu_ps(&fieldData[i]);
-
+        __m256 fieldVals = _mm256_loadu_ps(fieldData +i);
         // Scale and clamp
         fieldVals = _mm256_mul_ps(fieldVals, kVec);
         fieldVals = _mm256_min_ps(fieldVals, maxIdx);
-
         // Convert to integers (palette indices)
         __m256i indices = _mm256_cvtps_epi32(fieldVals);
-
-        // Extract indices for palette lookup
-        alignas(32) int idx[8];
-        _mm256_store_si256(reinterpret_cast<__m256i*>(idx), indices);
-
-        // Simple 32-bit copies (much faster than 3-byte RGB)
-
-        uint8_t* pPal = palette.data();
-        uint8_t* pPix = pixels.data();
-#if 0
-        for (int j = 0; j < 8; ++j) {
-            int pOffset = idx[j] * 4;
-            pixels[(i + j) * 4 + 0] = pPal[pOffset + 0];
-            pixels[(i + j) * 4 + 1] = pPal[pOffset + 1];
-            pixels[(i + j) * 4 + 2] = pPal[pOffset + 2];
-            pixels[(i + j) * 4 + 3] = pPal[pOffset + 3];
-        }
-#else
+        // Fetch colors as uint32_t
         __m256i colors = _mm256_i32gather_epi32(
-            reinterpret_cast<const int*>(palette.data()),  // base pointer (cast to int*)
-            indices,                                 // the 8 indices
-            4                                       // scale: each index * 4 bytes
+            reinterpret_cast<const int*>(palette.data()),   // base pointer (cast to int*)
+            indices,                                        // the 8 indices
+            4                                               // scale: each index * 4 bytes
         );
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pPix + i * 4), colors);
-#endif
+        // Store colors to pixels
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels.data() + i * 4), colors);
     }
-
-
 }
+
+
 
 void resetAgents() {
     srand((unsigned)time(0));
@@ -297,8 +293,13 @@ int main() {
     uint64_t last_counter = 0;
     while (!done) {
         updateAgents();
-        diffuse();
+#if USE_AVX
+        diffuseAvx();
         renderToPixelsAvx(pixels);
+#else
+        diffuse();
+        renderToPixels(pixels);
+#endif
 
         // Prepare a new frame
         ImGui_ImplSDLRenderer3_NewFrame();
