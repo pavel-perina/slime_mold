@@ -19,12 +19,13 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <string>
 #include <ctime>
+#include <array>
 
 #if USE_AVX
 #include <immintrin.h>
-#endif 
+#endif
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -48,6 +49,14 @@ int selectedPreset   = 0;
 int selectedPalette = 0;
 const std::vector<AgentPreset>   presets  = presetAgents();
 const std::vector<PalettePreset> palettes = presetPalettes();
+enum CMapInterpolation
+{
+    CMAP_INTERP_RGB,
+    CMAP_INTERP_LAB,
+    CMAP_INTERP_LCH,
+};
+std::array<std::string, 3> cmapLabels = { "RGB", "LAB", "LCH" };
+int cmapInterpolation = CMAP_INTERP_LCH;
 
 
 ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
@@ -169,15 +178,28 @@ void diffuseAvx() {
 #endif
 
 void clearField() {
-    for (auto& v : field) 
+    for (auto& v : field)
         v = 0.0f;
 }
 
 std::vector<uint8_t> preparePalette()
 {
     size_t mid = (size_t)(palette_mid * PALETTE_SIZE);
-    auto g1 = LCHGradient2(paletteA, paletteB, mid);
-    auto g2 = LCHGradient2(paletteB, paletteC, PALETTE_SIZE - mid);
+    GradientFunction gradientFn = nullptr;
+    switch (cmapInterpolation)
+    {
+    case CMAP_INTERP_RGB:
+        gradientFn = RGBGradient;
+        break;
+    case CMAP_INTERP_LAB:
+        gradientFn = LABGradient;
+        break;
+    case CMAP_INTERP_LCH:
+    default:
+        gradientFn = LCHGradient;
+    }
+    auto g1 = gradientFn(paletteA, paletteB, mid);
+    auto g2 = gradientFn(paletteB, paletteC, PALETTE_SIZE - mid);
     std::vector<uint8_t> palette(PALETTE_SIZE * 4);
     for (size_t i = 0; i < PALETTE_SIZE; i++) {
         palette[i * 4] = 255.0f;
@@ -315,8 +337,8 @@ int main() {
         ImGui::SetNextWindowPos(ImVec2(WIDTH, 0));
         ImGui::SetNextWindowSize(ImVec2(SIDEPANEL_WIDTH, HEIGHT));
         ImGui::Begin("Parameters", nullptr,
-            ImGuiWindowFlags_NoResize | 
-            ImGuiWindowFlags_NoMove | 
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoTitleBar);
         ImGui::PushItemWidth(-1); // Use full available width for sliders
@@ -344,12 +366,20 @@ int main() {
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::Text("Color Palette");
-        ImGui::ColorEdit3("Start", &paletteA.r, ImGuiColorEditFlags_NoLabel);
+        ImGui::ColorEdit3("Start",    &paletteA.r, ImGuiColorEditFlags_NoLabel);
         ImGui::ColorEdit3("Midpoint", &paletteB.r, ImGuiColorEditFlags_NoLabel);
         ImGui::ColorEdit3("Endpoint", &paletteC.r, ImGuiColorEditFlags_NoLabel);
         ImGui::Text("Palette Midpoint");
         ImGui::SliderFloat("##palette_mid", &palette_mid, 0.0f, 1.0f);
-
+#if 0
+        // Maybe hide this, LCH is superior and least boring
+        ImGui::Text("Color interpolation");
+        ImGui::Columns(3, "##cmap_interp", false);
+        ImGui::RadioButton("RGB", &cmapInterpolation, 0);  ImGui::NextColumn();
+        ImGui::RadioButton("LAB", &cmapInterpolation, 1);  ImGui::NextColumn();
+        ImGui::RadioButton("LCH", &cmapInterpolation, 2);
+        ImGui::Columns(1);
+#endif
         ImGui::Separator();
         if (ImGui::BeginCombo("Behavior", presets[selectedPreset].name.data())) {
             for (int i = 0; i < presets.size(); i++) {
@@ -394,7 +424,7 @@ int main() {
         // Upload pixel data and render simulation
         SDL_UpdateTexture(texture, nullptr, pixels.data(), WIDTH * 4);
         SDL_RenderTexture(renderer, texture, nullptr, &mainRect);
-        
+
         // Render ImGui on top
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
