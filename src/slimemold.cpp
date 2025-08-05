@@ -290,7 +290,7 @@ void updatePalette(int idx)
     paletteA = palettes[idx].paletteA;
     paletteB = palettes[idx].paletteB;
     paletteC = palettes[idx].paletteC;
-
+    // TODO: update LUT here
 }
 
 int main() {
@@ -298,7 +298,7 @@ int main() {
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window   *window   = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, HEIGHT, 0);
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, nullptr);
     SDL_Texture  *texture  = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB32, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
 
     IMGUI_CHECKVERSION();
@@ -381,10 +381,10 @@ int main() {
         ImGui::Columns(1);
 #endif
         ImGui::Separator();
-        if (ImGui::BeginCombo("Behavior", presets[selectedPreset].name.data())) {
+        if (ImGui::BeginCombo("##Behavior", presets[selectedPreset].name.c_str())) {
             for (int i = 0; i < presets.size(); i++) {
                 bool is_selected = (selectedPreset == i);
-                if (ImGui::Selectable(presets[i].name.data(), is_selected)) {
+                if (ImGui::Selectable(presets[i].name.c_str(), is_selected)) {
                     selectedPreset = i;
                     updateAgent(selectedPreset);
                 }
@@ -395,10 +395,10 @@ int main() {
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("Palette", palettes[selectedPalette].name.data())) {
+        if (ImGui::BeginCombo("##Palette", palettes[selectedPalette].name.c_str())) {
             for (int i = 0; i < palettes.size(); i++) {
                 bool is_selected = (selectedPalette == i);
-                if (ImGui::Selectable(palettes[i].name.data(), is_selected)) {
+                if (ImGui::Selectable(palettes[i].name.c_str(), is_selected)) {
                     selectedPalette = i;
                     updatePalette(selectedPalette);
                 }
