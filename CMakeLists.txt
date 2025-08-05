@@ -10,7 +10,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-
 find_package(SDL3 REQUIRED)
 
 # ImGui setup
@@ -41,5 +40,11 @@ target_include_directories(slime_mold PRIVATE
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
 )
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")
+    target_compile_options(slime_mold PRIVATE -mavx2)
+endif()
+
 
 target_link_libraries(slime_mold PRIVATE SDL3::SDL3)

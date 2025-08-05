@@ -16,7 +16,11 @@ More is in my [blog article](https://www.pavelp.cz/posts/eng-random-chatgpt-code
 
 ![Screenshot](slime_mold.png)
 
-## Build instructions (Windows, Conan)
+## Build instructions 
+
+Note: as of 2025-08-04 this code uses AVX2 instructions, which is supported by Intel/AMD CPUs from 2015 or so.
+
+### Windows, Conan
 
 
 * Clone this repo
@@ -48,3 +52,16 @@ More is in my [blog article](https://www.pavelp.cz/posts/eng-random-chatgpt-code
 Alternative to running Visual Studio:
 * `cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_TOOLCHAIN_FILE="build\generators\conan_toolchain.cmake"`
 * `.\build\RelWithDebInfo\slime_mold.exe`
+
+### Linux
+
+```sh
+# Install package (on Fedora)
+sudo dnf install SDL3-devel 
+git clone https://github.com/pavel-perina/slime_mold.git
+cd slime_mold
+git submodule update --init
+cmake -S . -B build
+cmake --build build --config Release
+```
+
