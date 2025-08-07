@@ -10,30 +10,15 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-find_package(SDL3 REQUIRED)
+find_package(SDL3)
 
-# ImGui setup
-set(IMGUI_DIR external/imgui)
-
-
-set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer3.cpp
-)
-
-add_executable(slime_mold 
-    src/slimemold.cpp
-    src/colors.cpp
-    src/presets.cpp
-    )
-
-# Add ImGui sources to your existing target
-target_sources(slime_mold PRIVATE ${IMGUI_SOURCES})
+add_subdirectory(libs/common)
+add_subdirectory(libs/ui_imgui)
+if (EMSCRIPTEN)
+add_subdirectory(apps/web)
+else()
+add_subdirectory(apps/native)
+endif()
 
 # Add ImGui include directories
 target_include_directories(slime_mold PRIVATE
@@ -41,10 +26,7 @@ target_include_directories(slime_mold PRIVATE
     ${IMGUI_DIR}/backends
 )
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")
-    target_compile_options(slime_mold PRIVATE -mavx2 -O3 -ffast-math)
-endif()
-
-
-target_link_libraries(slime_mold PRIVATE SDL3::SDL3)
+#if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+#    message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")
+#    target_compile_options(slime_mold PRIVATE -mavx2 -O3 -ffast-math)
+#endif()

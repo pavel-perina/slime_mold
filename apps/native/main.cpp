@@ -5,8 +5,8 @@
 #endif
 #define USE_AVX 1
 
-#include "colors.h"
-#include "presets.h"
+#include "common/colors.h"
+#include "common/presets.h"
 
 #include <SDL3/SDL.h>
 
