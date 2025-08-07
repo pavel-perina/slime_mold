@@ -3,7 +3,6 @@
 #define SDL_MAIN_HANDLED
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 #endif
-
 #define USE_AVX 1
 
 #include "colors.h"
@@ -23,27 +22,17 @@
 #include <ctime>
 #include <array>
 
-#if USE_AVX
-#include <immintrin.h>
-#endif
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 // WARNING: WIDTH*HEIGHT must be divisible by 8 due to vectorization code
-constexpr int   WIDTH = 640;
-constexpr int   HEIGHT = 480;
 constexpr int   SIDEPANEL_WIDTH = 224;
 constexpr int   TOTAL_WIDTH = SIDEPANEL_WIDTH + WIDTH;
-constexpr int   NUM_AGENTS = 250000;
 constexpr size_t PALETTE_SIZE = 1024;
 
-float sensor_angle = 0.5f;
-float sensor_dist  = 5.0f;
-float turn_angle   = 0.3f;
-float step_size    = 1.0f;
-float evaporate    = 0.95f;
+
 
 int selectedPreset   = 0;
 int selectedPalette = 0;
@@ -59,128 +48,9 @@ std::array<std::string, 3> cmapLabels = { "RGB", "LAB", "LCH" };
 int cmapInterpolation = CMAP_INTERP_LCH;
 
 
-ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
-ColorRGB paletteB = { 0.87f, 0.85f, 0.65f };
-ColorRGB paletteC = { 0.54f, 0.99f, 0.77f };
-float palette_mid = 0.5f;
-
-struct Agent {
-    float x, y, dx, dy;
-};
-
-std::vector<Agent> agents(NUM_AGENTS);
-std::vector<float> field(WIDTH * HEIGHT, 0.0f);
-
-float sampleField(float x, float y) {
-    int xi = ((int)(x+0.5f) + WIDTH) % WIDTH;
-    int yi = ((int)(y+0.5f) + HEIGHT) % HEIGHT;
-    int idx = yi * WIDTH + xi;
-    return field[idx];
-}
-
-void deposit(Agent &a) {
-    int xi = ((int)(a.x+0.5f) + WIDTH) % WIDTH;
-    int yi = ((int)(a.y+0.5f) + HEIGHT) % HEIGHT;
-    int idx = yi * WIDTH + xi;
-    field[idx] += 1.0f;
-}
-
-inline void rotate(float& dx, float& dy, float cos_a, float sin_a) {
-    float ndx = dx * cos_a - dy * sin_a;
-    float ndy = dx * sin_a + dy * cos_a;
-    dx = ndx;
-    dy = ndy;
-}
-
-void updateAgents() {
-    const float SENSOR_LEFT_COS = std::cos(-sensor_angle);
-    const float SENSOR_LEFT_SIN = std::sin(-sensor_angle);
-    const float SENSOR_RIGHT_COS = std::cos(sensor_angle);
-    const float SENSOR_RIGHT_SIN = std::sin(sensor_angle);
-
-    const float TURN_LEFT_COS = std::cos(-turn_angle);
-    const float TURN_LEFT_SIN = std::sin(-turn_angle);
-    const float TURN_RIGHT_COS = std::cos(turn_angle);
-    const float TURN_RIGHT_SIN = std::sin(turn_angle);
-
-    for (auto &a : agents) {
-        // Sensor positions
-        float cx = a.x + a.dx * sensor_dist;
-        float cy = a.y + a.dy * sensor_dist;
-
-        float ldx = a.dx * SENSOR_LEFT_COS - a.dy * SENSOR_LEFT_SIN;
-        float ldy = a.dx * SENSOR_LEFT_SIN + a.dy * SENSOR_LEFT_COS;
-        float lx = a.x + ldx * sensor_dist;
-        float ly = a.y + ldy * sensor_dist;
-
-        float rdx = a.dx * SENSOR_RIGHT_COS - a.dy * SENSOR_RIGHT_SIN;
-        float rdy = a.dx * SENSOR_RIGHT_SIN + a.dy * SENSOR_RIGHT_COS;
-        float rx = a.x + rdx * sensor_dist;
-        float ry = a.y + rdy * sensor_dist;
-
-        // Sample sensors
-        float c = sampleField(cx, cy);
-        float l = sampleField(lx, ly);
-        float r = sampleField(rx, ry);
 
 
-        // Adjust angle
-        if (c > l && c > r) {
-            // keep direction
-        }
-        else if (l > r) {
-            rotate(a.dx, a.dy, TURN_LEFT_COS, TURN_LEFT_SIN);
-        }
-        else if (r > l) {
-            rotate(a.dx, a.dy, TURN_RIGHT_COS, TURN_RIGHT_SIN);
-        }
-        else {
-            if (rand() % 2) {
-                rotate(a.dx, a.dy, TURN_LEFT_COS, TURN_LEFT_SIN);
-            }
-            else {
-                rotate(a.dx, a.dy, TURN_RIGHT_COS, TURN_RIGHT_SIN);
-            }
-        }
 
-        // Move
-        a.x += a.dx * step_size;
-        a.y += a.dy * step_size;
-
-        // Wrap around
-        if (a.x < 0) a.x += WIDTH;
-        if (a.x >= WIDTH) a.x -= WIDTH;
-        if (a.y < 0) a.y += HEIGHT;
-        if (a.y >= HEIGHT) a.y -= HEIGHT;
-
-        deposit(a);
-    }
-}
-
-void diffuse() {
-    // Evaporation only for simplicity
-    for (auto& v : field)
-        v *= evaporate;
-}
-
-#if USE_AVX
-void diffuseAvx() {
-    const size_t count = field.size();
-    constexpr size_t avxWidth = 8; // 8 floats per register
-    float* data = field.data();
-    const __m256 evaporateVec = _mm256_set1_ps(evaporate);
-    for (size_t i = 0; i < count; i += avxWidth) {
-        __m256 values = _mm256_loadu_ps(data + i);
-        values = _mm256_mul_ps(values, evaporateVec);
-        _mm256_storeu_ps(&data[i], values);
-    }
-}
-#endif
-
-void clearField() {
-    for (auto& v : field)
-        v = 0.0f;
-}
 
 std::vector<uint8_t> preparePalette()
 {
@@ -265,7 +135,7 @@ void renderToPixelsAvx(std::vector<uint8_t>& pixels)
 
 
 
-void resetAgents() {
+void SlimeMoldSimulation::resetAgents() {
     srand((unsigned)time(0));
     for (auto& a : agents) {
         a.x = rand() % WIDTH;
@@ -276,7 +146,7 @@ void resetAgents() {
     }
 }
 
-void updateAgent(int idx) {
+void SlimeMoldSimulation::updateAgent(int idx) {
     sensor_angle = presets[idx].sensor_angle;
     sensor_dist  = presets[idx].sensor_dist;
     evaporate    = presets[idx].evaporate;
@@ -285,7 +155,7 @@ void updateAgent(int idx) {
     palette_mid  = presets[idx].palette_mid;
 }
 
-void updatePalette(int idx)
+void SlimeMoldSimulation::updatePalette(int idx)
 {
     paletteA = palettes[idx].paletteA;
     paletteB = palettes[idx].paletteB;
@@ -294,7 +164,7 @@ void updatePalette(int idx)
 }
 
 int main() {
-    resetAgents();
+    SlimeMoldSimulation sim;
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window   *window   = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, HEIGHT, 0);

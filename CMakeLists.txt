@@ -43,7 +43,7 @@ target_include_directories(slime_mold PRIVATE
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")
-    target_compile_options(slime_mold PRIVATE -mavx2)
+    target_compile_options(slime_mold PRIVATE -mavx2 -O3 -ffast-math)
 endif()
 
 
