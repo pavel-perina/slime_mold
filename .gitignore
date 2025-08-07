@@ -1,5 +1,6 @@
 .vs/
 build/
+build-emscripten/
 out/
 enc_temp_folder/
 *.bak

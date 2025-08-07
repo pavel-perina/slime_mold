@@ -16,15 +16,17 @@ add_subdirectory(libs/common)
 add_subdirectory(libs/ui_imgui)
 if (EMSCRIPTEN)
 add_subdirectory(apps/web)
+target_include_directories(slime_mold_web PRIVATE
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+)
 else()
 add_subdirectory(apps/native)
-endif()
-
-# Add ImGui include directories
 target_include_directories(slime_mold PRIVATE
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
 )
+endif()
 
 #if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 #    message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")

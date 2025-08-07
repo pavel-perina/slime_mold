@@ -1,4 +1,3 @@
-#pragma once
 #include "ui_imgui/ui.h"
 #include "common/slime_mold.h"
 

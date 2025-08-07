@@ -15,8 +15,7 @@ set_target_properties(slime_mold_web PROPERTIES
 )
 
 target_link_options(slime_mold_web PRIVATE
-    -sUSE_SDL=2
+    -sUSE_SDL=3    
     -sWASM=1
     -sALLOW_MEMORY_GROWTH=1
-    --preload-file ${CMAKE_SOURCE_DIR}/assets@/assets
 )
