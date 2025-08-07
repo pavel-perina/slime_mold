@@ -1,0 +1,271 @@
+#pragma once
+#include "ui_imgui/ui.h"
+#include "common/slime_mold.h"
+
+#include <SDL3/SDL.h>
+
+#include <imgui.h>
+#include <backends/imgui_impl_sdl3.h>
+#include <backends/imgui_impl_sdlrenderer3.h>
+
+#include <string>
+#include <array>
+
+class Ui::Private {
+public:
+    SDL_Window*   window   = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    SDL_Texture*  texture  = nullptr;
+    uint64_t last_counter = 0;
+    AgentPreset agent;
+};
+
+constexpr size_t PALETTE_SIZE = 1024;
+
+int selectedPreset = 0;
+int selectedPalette = 0;
+const std::vector<AgentPreset>   presets = presetAgents();
+const std::vector<PalettePreset> palettes = presetPalettes();
+enum CMapInterpolation
+{
+    CMAP_INTERP_RGB,
+    CMAP_INTERP_LAB,
+    CMAP_INTERP_LCH,
+};
+std::array<std::string, 3> cmapLabels = { "RGB", "LAB", "LCH" };
+int cmapInterpolation = CMAP_INTERP_LCH;
+
+ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
+ColorRGB paletteB = { 0.87f, 0.85f, 0.65f };
+ColorRGB paletteC = { 0.54f, 0.99f, 0.77f };
+float palette_mid = 0.5f;
+
+std::vector<uint8_t> preparePalette()
+{
+    size_t mid = (size_t)(palette_mid * PALETTE_SIZE);
+    GradientFunction gradientFn = nullptr;
+    switch (cmapInterpolation)
+    {
+    case CMAP_INTERP_RGB:
+        gradientFn = RGBGradient;
+        break;
+    case CMAP_INTERP_LAB:
+        gradientFn = LABGradient;
+        break;
+    case CMAP_INTERP_LCH:
+    default:
+        gradientFn = LCHGradient;
+    }
+    auto g1 = gradientFn(paletteA, paletteB, mid);
+    auto g2 = gradientFn(paletteB, paletteC, PALETTE_SIZE - mid);
+    std::vector<uint8_t> palette(PALETTE_SIZE * 4);
+    for (size_t i = 0; i < PALETTE_SIZE; i++) {
+        palette[i * 4] = 255.0f;
+        if (i < mid) {
+            palette[i * 4 + 1] = g1[i].r * 255.0f;
+            palette[i * 4 + 2] = g1[i].g * 255.0f;
+            palette[i * 4 + 3] = g1[i].b * 255.0f;
+        }
+        else {
+            size_t j = i - mid;
+            palette[i * 4 + 1] = g2[j].r * 255.0f;
+            palette[i * 4 + 2] = g2[j].g * 255.0f;
+            palette[i * 4 + 3] = g2[j].b * 255.0f;
+        }
+    }
+    return palette;
+}
+
+
+void renderToPixels(std::vector<uint8_t>& pixels, const float* field)
+{
+    const auto palette = preparePalette();
+    constexpr float k = 10.0f * PALETTE_SIZE / 256.0f;
+    const uint32_t* paletteU32 = reinterpret_cast<const uint32_t*>(palette.data());
+    uint32_t* pixelsU32 = reinterpret_cast<uint32_t*>(pixels.data());
+    for (int i = 0; i < SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT; i++) {
+        int c = std::min(field[i] * k, static_cast<float>(PALETTE_SIZE - 1));
+        //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
+        pixelsU32[i] = paletteU32[c];
+    }
+}
+
+
+void renderToPixelsAvx(std::vector<uint8_t>& pixels, const float* field)
+{
+    const auto palette = preparePalette();
+
+    // Initialize scale and clamp
+    const __m256 kVec = _mm256_set1_ps(10.0f * PALETTE_SIZE / 256.0f);
+    const __m256 maxIdx = _mm256_set1_ps(static_cast<float>(PALETTE_SIZE - 1));
+
+    // Process 8 pixels at a time
+    constexpr size_t avxWidth = 8;
+    for (size_t i = 0; i < SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT; i += avxWidth) {
+        // Load 8 field values
+        __m256 fieldVals = _mm256_loadu_ps(field + i);
+        // Scale and clamp
+        fieldVals = _mm256_mul_ps(fieldVals, kVec);
+        fieldVals = _mm256_min_ps(fieldVals, maxIdx);
+        // Convert to integers (palette indices)
+        __m256i indices = _mm256_cvtps_epi32(fieldVals);
+        // Fetch colors as uint32_t
+        __m256i colors = _mm256_i32gather_epi32(
+            reinterpret_cast<const int*>(palette.data()),   // base pointer (cast to int*)
+            indices,                                        // the 8 indices
+            4                                               // scale: each index * 4 bytes
+        );
+        // Store colors to pixels
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels.data() + i * 4), colors);
+    }
+}
+
+
+Ui::Ui()
+    : m_p(std::make_unique<Private>())
+{
+    constexpr size_t TOTAL_WIDTH = 224 + SlimeMoldSimulation::WIDTH;
+    SDL_Init(SDL_INIT_VIDEO);
+    m_p->window = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, SlimeMoldSimulation::HEIGHT, 0);
+    m_p->renderer = SDL_CreateRenderer(m_p->window, nullptr);
+    m_p->texture = SDL_CreateTexture(
+        m_p->renderer,
+        SDL_PIXELFORMAT_ARGB32,
+        SDL_TEXTUREACCESS_STREAMING,
+        SlimeMoldSimulation::WIDTH,
+        SlimeMoldSimulation::HEIGHT
+    );
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL3_InitForSDLRenderer(m_p->window, m_p->renderer);
+    ImGui_ImplSDLRenderer3_Init(m_p->renderer);
+}
+
+
+Ui::~Ui()
+{
+    ImGui_ImplSDLRenderer3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+
+    SDL_DestroyTexture(m_p->texture);
+    SDL_DestroyRenderer(m_p->renderer);
+    SDL_DestroyWindow(m_p->window);
+    SDL_Quit();
+}
+
+
+void Ui::frame() 
+{
+    // Prepare a new frame
+    ImGui_ImplSDLRenderer3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    uint64_t current_counter = SDL_GetPerformanceCounter();
+    float delta_time = (current_counter - m_p->last_counter) / (float)SDL_GetPerformanceFrequency();
+    float fps = 1.0f / delta_time;
+    m_p->last_counter = current_counter;
+
+    AgentPreset& agent = m_p->agent;
+
+    // Position the sidebar on the right side
+    ImGui::SetNextWindowPos(ImVec2(SlimeMoldSimulation::WIDTH, 0));
+    ImGui::SetNextWindowSize(ImVec2(SIDEPANEL_WIDTH, SlimeMoldSimulation::HEIGHT));
+    ImGui::Begin("Parameters", nullptr,
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoTitleBar);
+    ImGui::PushItemWidth(-1); // Use full available width for sliders
+    ImGui::Spacing();
+    ImGui::Text("FPS %.1f", fps);
+
+    ImGui::Text("Simulation Parameters");
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Sensor Angle");
+    ImGui::SliderFloat("##sensor_angle", &agent.sensor_angle, 0.0f, 2.0f);
+    ImGui::Text("Sensor Distance");
+    ImGui::SliderFloat("##sensor_dist", &agent.sensor_dist, 1.0f, 12.0f);
+    ImGui::Text("Turn Angle");
+    ImGui::SliderFloat("##turn_angle", &agent.turn_angle, 0.0f, 1.0f);
+    ImGui::Text("Step Size");
+    ImGui::SliderFloat("##step_size", &agent.step_size, 0.1f, 5.0f);
+    ImGui::Text("Evaporation");
+    ImGui::SliderFloat("##evaporate", &agent.evaporate, 0.5f, 0.99f);
+    ImGui::Spacing();
+    if (ImGui::Button("Reset")) {
+        resetAgents();
+        clearField();
+    }
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Color Palette");
+    ImGui::ColorEdit3("Start",    &paletteA.r, ImGuiColorEditFlags_NoLabel);
+    ImGui::ColorEdit3("Midpoint", &paletteB.r, ImGuiColorEditFlags_NoLabel);
+    ImGui::ColorEdit3("Endpoint", &paletteC.r, ImGuiColorEditFlags_NoLabel);
+    ImGui::Text("Palette Midpoint");
+    ImGui::SliderFloat("##palette_mid", &palette_mid, 0.0f, 1.0f);
+#if 0
+    // Maybe hide this, LCH is superior and least boring
+    ImGui::Text("Color interpolation");
+    ImGui::Columns(3, "##cmap_interp", false);
+    ImGui::RadioButton("RGB", &cmapInterpolation, 0);  ImGui::NextColumn();
+    ImGui::RadioButton("LAB", &cmapInterpolation, 1);  ImGui::NextColumn();
+    ImGui::RadioButton("LCH", &cmapInterpolation, 2);
+    ImGui::Columns(1);
+#endif
+    ImGui::Separator();
+    if (ImGui::BeginCombo("##Behavior", presets[selectedPreset].name.c_str())) {
+        for (int i = 0; i < presets.size(); i++) {
+            bool is_selected = (selectedPreset == i);
+            if (ImGui::Selectable(presets[i].name.c_str(), is_selected)) {
+                selectedPreset = i;
+                updateAgent(selectedPreset);
+            }
+            if (is_selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    if (ImGui::BeginCombo("##Palette", palettes[selectedPalette].name.c_str())) {
+        for (int i = 0; i < palettes.size(); i++) {
+            bool is_selected = (selectedPalette == i);
+            if (ImGui::Selectable(palettes[i].name.c_str(), is_selected)) {
+                selectedPalette = i;
+                updatePalette(selectedPalette);
+            }
+            if (is_selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::End();
+
+    ImGui::Render();
+
+    // Clear canvas with a background color (dark gray background)
+    SDL_SetRenderDrawColor(m_p->renderer, 40, 40, 40, 255);
+    SDL_RenderClear(m_p->renderer);
+
+    // Define the destination rectangle for the main simulation area
+    const SDL_FRect mainRect = { 0, 0, SlimeMoldSimulation::WIDTH, SlimeMoldSimulation::HEIGHT };
+
+    // Upload pixel data and render simulation
+    SDL_UpdateTexture(m_p->texture, nullptr, pixels.data(), SlimeMoldSimulation::WIDTH * 4);
+    SDL_RenderTexture(m_p->renderer, m_p->texture, nullptr, &mainRect);
+
+    // Render ImGui on top
+    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), m_p->renderer);
+    SDL_RenderPresent(m_p->renderer);
+}

@@ -11,6 +11,7 @@ public:
     void step();
 
 public:
+    // WARNING: WIDTH*HEIGHT must be divisible by 8 due to vectorization code
     static constexpr int WIDTH = 640;
     static constexpr int HEIGHT = 480;
     static constexpr int NUM_AGENTS = 250000;

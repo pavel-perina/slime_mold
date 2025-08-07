@@ -185,6 +185,7 @@ SlimeMoldSimulation::SlimeMoldSimulation()
 void SlimeMoldSimulation::step(const AgentPreset &p)
 {
     m_p->updateAgents(p);
+    m_p->diffuse(p.evaporate);
 }
 
 
