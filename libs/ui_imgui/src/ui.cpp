@@ -33,12 +33,11 @@ public:
     SDL_Renderer* renderer = nullptr;
     SDL_Texture*  texture  = nullptr;
     bool done = false;
+    
+    AgentPreset agent;
 
     //! FPS counter
     uint64_t      last_counter = 0;
-
-    //! Current preset
-    AgentPreset   agent;
 
     //! Simulation
     SlimeMoldSimulation sim;
@@ -62,12 +61,11 @@ public:
     ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
     ColorRGB paletteB = { 0.87f, 0.85f, 0.65f };
     ColorRGB paletteC = { 0.54f, 0.99f, 0.77f };
-    float palette_mid = 0.5f;
+    //float palette_mid = 0.5f;
 
     std::vector<uint8_t> preparePalette();
 
     void renderToPixels(std::vector<uint8_t>& pixels, const float* field);
-
 
     std::string presetName(size_t index) const
     {
@@ -76,7 +74,7 @@ public:
 
     std::string selectedPresetName() const
     {
-        presetName(selectedPreset);
+        return presetName(selectedPreset);
     }
 
     std::string paletteName(size_t index) const
@@ -89,10 +87,20 @@ public:
         return paletteName(selectedPalette);
     }
 
-    /*void updateAgent(size_t index) {
+    void updateAgent(size_t index)
+    {
         agent = presets[index];
-    }*/
+    }
+
+    void updatePalette(size_t index)
+    {
+        paletteA = palettes[index].paletteA;
+        paletteB = palettes[index].paletteB;
+        paletteC = palettes[index].paletteC;
+    }
+
 };
+
 
 const std::array<const char*, 3> Ui::Private::cmapLabels = { "RGB", "LAB", "LCH" };
 
@@ -102,12 +110,13 @@ Ui::Private::Private()
     pixels.resize(SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT * 4, 0);
     presets  = presetAgents();
     palettes = presetPalettes();
+    updateAgent(selectedPreset);
 }
 
 
 std::vector<uint8_t> Ui::Private::preparePalette()
 {
-    size_t mid = (size_t)(palette_mid * PALETTE_SIZE);
+    size_t mid = (size_t)(agent.palette_mid * PALETTE_SIZE);
     GradientFunction gradientFn = nullptr;
     switch (cmapInterpolation)
     {
@@ -140,6 +149,7 @@ std::vector<uint8_t> Ui::Private::preparePalette()
     }
     return palette;
 }
+
 
 void Ui::Private::renderToPixels(std::vector<uint8_t>& pixels, const float* field)
 {
@@ -229,7 +239,8 @@ bool Ui::done()
 void Ui::frame() 
 {
     // Do simulation step
-    m_p->sim.step(m_p->presets[m_p->selectedPreset]);
+    m_p->sim.step(m_p->agent);
+    m_p->renderToPixels(m_p->pixels, m_p->sim.data());
 
     // Prepare a new frame
     ImGui_ImplSDLRenderer3_NewFrame();
@@ -279,7 +290,7 @@ void Ui::frame()
     ImGui::ColorEdit3("Midpoint", &m_p->paletteB.r, ImGuiColorEditFlags_NoLabel);
     ImGui::ColorEdit3("Endpoint", &m_p->paletteC.r, ImGuiColorEditFlags_NoLabel);
     ImGui::Text("Palette Midpoint");
-    ImGui::SliderFloat("##palette_mid", &m_p->palette_mid, 0.0f, 1.0f);
+    ImGui::SliderFloat("##palette_mid", &agent.palette_mid, 0.0f, 1.0f);
 #if 0
     // Maybe hide this, LCH is superior and least boring
     ImGui::Text("Color interpolation");
@@ -290,11 +301,12 @@ void Ui::frame()
     ImGui::Columns(1);
 #endif
     ImGui::Separator();
-    if (ImGui::BeginCombo("##Behavior", m_p->selectedPaletteName().c_str())) {
+    if (ImGui::BeginCombo("##Behavior", m_p->selectedPresetName().c_str())) {
         for (int i = 0; i < m_p->presets.size(); i++) {
             bool is_selected = (m_p->selectedPreset == i);
             if (ImGui::Selectable(m_p->presetName(i).c_str(), is_selected)) {
-                m_p->selectedPreset = i;
+                m_p->selectedPreset = i; // FIXME: single line
+                m_p->updateAgent(i);
             }
             if (is_selected) {
                 ImGui::SetItemDefaultFocus();
@@ -308,6 +320,7 @@ void Ui::frame()
             bool is_selected = (m_p->selectedPalette == i);
             if (ImGui::Selectable(m_p->paletteName(i).c_str(), is_selected)) {
                 m_p->selectedPalette = i;
+                m_p->updatePalette(i);
             }
             if (is_selected) {
                 ImGui::SetItemDefaultFocus();
