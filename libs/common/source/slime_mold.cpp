@@ -182,6 +182,9 @@ SlimeMoldSimulation::SlimeMoldSimulation()
 }
 
 
+SlimeMoldSimulation::~SlimeMoldSimulation() = default;
+
+
 void SlimeMoldSimulation::step(const AgentPreset &p)
 {
     m_p->updateAgents(p);
@@ -200,8 +203,3 @@ const float * SlimeMoldSimulation::data()
 {
     return m_p->field.data();
 }
-
-
-
-
-

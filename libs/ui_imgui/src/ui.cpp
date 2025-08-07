@@ -11,36 +11,101 @@
 #include <string>
 #include <array>
 
-class Ui::Private {
-public:
-    SDL_Window*   window   = nullptr;
-    SDL_Renderer* renderer = nullptr;
-    SDL_Texture*  texture  = nullptr;
-    uint64_t last_counter = 0;
-    AgentPreset agent;
-};
+namespace {
 
-constexpr size_t PALETTE_SIZE = 1024;
-
-int selectedPreset = 0;
-int selectedPalette = 0;
-const std::vector<AgentPreset>   presets = presetAgents();
-const std::vector<PalettePreset> palettes = presetPalettes();
 enum CMapInterpolation
 {
     CMAP_INTERP_RGB,
     CMAP_INTERP_LAB,
     CMAP_INTERP_LCH,
 };
-std::array<std::string, 3> cmapLabels = { "RGB", "LAB", "LCH" };
-int cmapInterpolation = CMAP_INTERP_LCH;
 
-ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
-ColorRGB paletteB = { 0.87f, 0.85f, 0.65f };
-ColorRGB paletteC = { 0.54f, 0.99f, 0.77f };
-float palette_mid = 0.5f;
+} // anonymous namespace
 
-std::vector<uint8_t> preparePalette()
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class Ui::Private {
+public:
+    //! Constructor
+    Private();
+
+    // SDL stuff
+    SDL_Window*   window   = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    SDL_Texture*  texture  = nullptr;
+    bool done = false;
+
+    //! FPS counter
+    uint64_t      last_counter = 0;
+
+    //! Current preset
+    AgentPreset   agent;
+
+    //! Simulation
+    SlimeMoldSimulation sim;
+
+    //! SDL Texture pixels
+    std::vector<uint8_t> pixels;
+
+    //! Agent behaviour presets
+    std::vector<AgentPreset> presets;
+
+    //! Palette presets
+    std::vector<PalettePreset> palettes;
+
+
+    static constexpr size_t PALETTE_SIZE = 1024;
+    int cmapInterpolation = CMAP_INTERP_LCH;
+    int selectedPreset = 0;
+    int selectedPalette = 0;
+    static const std::array<const char*, 3> cmapLabels;
+
+    ColorRGB paletteA = { 0.31f, 0.14f, 0.33f };
+    ColorRGB paletteB = { 0.87f, 0.85f, 0.65f };
+    ColorRGB paletteC = { 0.54f, 0.99f, 0.77f };
+    float palette_mid = 0.5f;
+
+    std::vector<uint8_t> preparePalette();
+
+    void renderToPixels(std::vector<uint8_t>& pixels, const float* field);
+
+
+    std::string presetName(size_t index) const
+    {
+        return presets[index].name;
+    }
+
+    std::string selectedPresetName() const
+    {
+        presetName(selectedPreset);
+    }
+
+    std::string paletteName(size_t index) const
+    {
+        return palettes[index].name;
+    }
+
+    std::string selectedPaletteName() const
+    {
+        return paletteName(selectedPalette);
+    }
+
+    /*void updateAgent(size_t index) {
+        agent = presets[index];
+    }*/
+};
+
+const std::array<const char*, 3> Ui::Private::cmapLabels = { "RGB", "LAB", "LCH" };
+
+
+Ui::Private::Private()
+{
+    pixels.resize(SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT * 4, 0);
+    presets  = presetAgents();
+    palettes = presetPalettes();
+}
+
+
+std::vector<uint8_t> Ui::Private::preparePalette()
 {
     size_t mid = (size_t)(palette_mid * PALETTE_SIZE);
     GradientFunction gradientFn = nullptr;
@@ -76,25 +141,10 @@ std::vector<uint8_t> preparePalette()
     return palette;
 }
 
-
-void renderToPixels(std::vector<uint8_t>& pixels, const float* field)
+void Ui::Private::renderToPixels(std::vector<uint8_t>& pixels, const float* field)
 {
     const auto palette = preparePalette();
-    constexpr float k = 10.0f * PALETTE_SIZE / 256.0f;
-    const uint32_t* paletteU32 = reinterpret_cast<const uint32_t*>(palette.data());
-    uint32_t* pixelsU32 = reinterpret_cast<uint32_t*>(pixels.data());
-    for (int i = 0; i < SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT; i++) {
-        int c = std::min(field[i] * k, static_cast<float>(PALETTE_SIZE - 1));
-        //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
-        pixelsU32[i] = paletteU32[c];
-    }
-}
-
-
-void renderToPixelsAvx(std::vector<uint8_t>& pixels, const float* field)
-{
-    const auto palette = preparePalette();
-
+#if USE_AVX
     // Initialize scale and clamp
     const __m256 kVec = _mm256_set1_ps(10.0f * PALETTE_SIZE / 256.0f);
     const __m256 maxIdx = _mm256_set1_ps(static_cast<float>(PALETTE_SIZE - 1));
@@ -118,7 +168,19 @@ void renderToPixelsAvx(std::vector<uint8_t>& pixels, const float* field)
         // Store colors to pixels
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels.data() + i * 4), colors);
     }
+#else
+    constexpr float k = 10.0f * PALETTE_SIZE / 256.0f;
+    const uint32_t* paletteU32 = reinterpret_cast<const uint32_t*>(palette.data());
+    uint32_t* pixelsU32 = reinterpret_cast<uint32_t*>(pixels.data());
+    for (int i = 0; i < SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT; i++) {
+        int c = std::min(field[i] * k, static_cast<float>(PALETTE_SIZE - 1));
+        //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
+        pixelsU32[i] = paletteU32[c];
+    }
+#endif
 }
+
+
 
 
 Ui::Ui()
@@ -158,9 +220,17 @@ Ui::~Ui()
     SDL_Quit();
 }
 
+bool Ui::done()
+{
+    return m_p->done;
+}
+
 
 void Ui::frame() 
 {
+    // Do simulation step
+    m_p->sim.step(m_p->presets[m_p->selectedPreset]);
+
     // Prepare a new frame
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
@@ -200,17 +270,16 @@ void Ui::frame()
     ImGui::SliderFloat("##evaporate", &agent.evaporate, 0.5f, 0.99f);
     ImGui::Spacing();
     if (ImGui::Button("Reset")) {
-        resetAgents();
-        clearField();
+        m_p->sim.reset();
     }
     ImGui::Separator();
     ImGui::Spacing();
     ImGui::Text("Color Palette");
-    ImGui::ColorEdit3("Start",    &paletteA.r, ImGuiColorEditFlags_NoLabel);
-    ImGui::ColorEdit3("Midpoint", &paletteB.r, ImGuiColorEditFlags_NoLabel);
-    ImGui::ColorEdit3("Endpoint", &paletteC.r, ImGuiColorEditFlags_NoLabel);
+    ImGui::ColorEdit3("Start",    &m_p->paletteA.r, ImGuiColorEditFlags_NoLabel);
+    ImGui::ColorEdit3("Midpoint", &m_p->paletteB.r, ImGuiColorEditFlags_NoLabel);
+    ImGui::ColorEdit3("Endpoint", &m_p->paletteC.r, ImGuiColorEditFlags_NoLabel);
     ImGui::Text("Palette Midpoint");
-    ImGui::SliderFloat("##palette_mid", &palette_mid, 0.0f, 1.0f);
+    ImGui::SliderFloat("##palette_mid", &m_p->palette_mid, 0.0f, 1.0f);
 #if 0
     // Maybe hide this, LCH is superior and least boring
     ImGui::Text("Color interpolation");
@@ -221,12 +290,11 @@ void Ui::frame()
     ImGui::Columns(1);
 #endif
     ImGui::Separator();
-    if (ImGui::BeginCombo("##Behavior", presets[selectedPreset].name.c_str())) {
-        for (int i = 0; i < presets.size(); i++) {
-            bool is_selected = (selectedPreset == i);
-            if (ImGui::Selectable(presets[i].name.c_str(), is_selected)) {
-                selectedPreset = i;
-                updateAgent(selectedPreset);
+    if (ImGui::BeginCombo("##Behavior", m_p->selectedPaletteName().c_str())) {
+        for (int i = 0; i < m_p->presets.size(); i++) {
+            bool is_selected = (m_p->selectedPreset == i);
+            if (ImGui::Selectable(m_p->presetName(i).c_str(), is_selected)) {
+                m_p->selectedPreset = i;
             }
             if (is_selected) {
                 ImGui::SetItemDefaultFocus();
@@ -235,12 +303,11 @@ void Ui::frame()
         ImGui::EndCombo();
     }
 
-    if (ImGui::BeginCombo("##Palette", palettes[selectedPalette].name.c_str())) {
-        for (int i = 0; i < palettes.size(); i++) {
-            bool is_selected = (selectedPalette == i);
-            if (ImGui::Selectable(palettes[i].name.c_str(), is_selected)) {
-                selectedPalette = i;
-                updatePalette(selectedPalette);
+    if (ImGui::BeginCombo("##Palette", m_p->selectedPaletteName().c_str())) {
+        for (int i = 0; i < m_p->palettes.size(); i++) {
+            bool is_selected = (m_p->selectedPalette == i);
+            if (ImGui::Selectable(m_p->paletteName(i).c_str(), is_selected)) {
+                m_p->selectedPalette = i;
             }
             if (is_selected) {
                 ImGui::SetItemDefaultFocus();
@@ -262,10 +329,19 @@ void Ui::frame()
     const SDL_FRect mainRect = { 0, 0, SlimeMoldSimulation::WIDTH, SlimeMoldSimulation::HEIGHT };
 
     // Upload pixel data and render simulation
-    SDL_UpdateTexture(m_p->texture, nullptr, pixels.data(), SlimeMoldSimulation::WIDTH * 4);
+    SDL_UpdateTexture(m_p->texture, nullptr, m_p->pixels.data(), SlimeMoldSimulation::WIDTH * 4);
     SDL_RenderTexture(m_p->renderer, m_p->texture, nullptr, &mainRect);
 
     // Render ImGui on top
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), m_p->renderer);
     SDL_RenderPresent(m_p->renderer);
+
+    // Handle quit
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        ImGui_ImplSDL3_ProcessEvent(&e);
+        if (e.type == SDL_EVENT_QUIT)
+            m_p->done = true;
+    }
+
 }

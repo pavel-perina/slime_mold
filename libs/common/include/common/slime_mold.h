@@ -7,6 +7,7 @@ class SlimeMoldSimulation
 {
 public:
     SlimeMoldSimulation();
+    ~SlimeMoldSimulation();
 
     void step();
 
