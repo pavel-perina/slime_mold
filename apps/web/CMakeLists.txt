@@ -18,4 +18,5 @@ target_link_options(slime_mold_web PRIVATE
     -sUSE_SDL=3    
     -sWASM=1
     -sALLOW_MEMORY_GROWTH=1
+    --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/shell-minimal.html
 )
