@@ -57,12 +57,18 @@ Alternative to running Visual Studio:
 
 ```sh
 # Install package (on Fedora)
-sudo dnf install SDL3-devel 
+sudo dnf install SDL3-devel
+# Clone repository
 git clone https://github.com/pavel-perina/slime_mold.git
 cd slime_mold
+# Fetch ImGui submodule
 git submodule update --init
+# Configure
 cmake -S . -B build
-cmake --build build --config Release
+# Build using 4 cpu cores
+cmake --build build -j 4 --config Release
+# Run
+build/apps/sdl/slime_mold
 ```
 
 ### Linux, emscripten
@@ -72,5 +78,6 @@ cmake --build build --config Release
 source ~/emsdk/emsdk_env.sh
 emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release
 cmake --build build-emscripten --config Release
-python -m http.server --bind "::" 9000 -d build-emscripten/apps/web
+python -m http.server --bind "::" 9000 -d build-emscripten/apps/sdl
 ```
+
