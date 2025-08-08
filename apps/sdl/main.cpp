@@ -1,12 +1,14 @@
-// slimemold.cpp
+//! \file main.cpp
+
 #ifdef _WIN32
-#define SDL_MAIN_HANDLED
+//#define SDL_MAIN_HANDLED
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 #endif
 
 #include "ui_imgui/ui.h"
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 
 static Ui* g_ui = nullptr;
 

@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
-project(slime_mold_simulator)
+project(slime_mold_simulator LANGUAGES CXX)
+
+# === UI Backend Selection ===
+set(UI_BACKEND "sdl" CACHE STRING "UI backend: sdl or qml")
+set_property(CACHE UI_BACKEND PROPERTY STRINGS "sdl" "qml")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,11 +14,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-find_package(SDL3)
-
 add_subdirectory(libs/common)
-add_subdirectory(libs/ui_imgui)
-add_subdirectory(apps/sdl)
+if(UI_BACKEND STREQUAL "sdl")
+    find_package(SDL3 REQUIRED CONFIG)
+    add_subdirectory(libs/ui_imgui)
+    add_subdirectory(apps/sdl)
+elseif(UI_BACKEND STREQUAL "qml")
+    find_package(Qt6 REQUIRED COMPONENTS Quick)
+    message(FATAL_ERROR "QtQuick/QML build not yet ready.")
+    #add_subdirectory(apps/qt)
+else()
+    message(FATAL_ERROR "UI_BACKEND must be 'sdl' or 'qml'")
+endif()
 
 
 #if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
