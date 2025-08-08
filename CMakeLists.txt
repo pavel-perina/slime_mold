@@ -14,15 +14,8 @@ find_package(SDL3)
 
 add_subdirectory(libs/common)
 add_subdirectory(libs/ui_imgui)
-if (EMSCRIPTEN)
-    add_subdirectory(apps/web)
-else()
-    add_subdirectory(apps/native)
-    target_include_directories(slime_mold PRIVATE
-        ${IMGUI_DIR}
-        ${IMGUI_DIR}/backends
-)
-endif()
+add_subdirectory(apps/sdl)
+
 
 #if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 #    message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")
