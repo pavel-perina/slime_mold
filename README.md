@@ -65,3 +65,12 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
+### Linux, emscripten
+
+```sh
+# Set environment (once per shell session)
+source ~/emsdk/emsdk_env.sh
+emcmake cmake -S . -B build-emscripten -DSDL3_DIR=/home/pavel/dev-c/SDL/build/ -DCMAKE_BUILD_TYPE=Release
+cmake --build build-emscripten --config Release
+python -m http.server --bind "::" 9000 -d build-emscripten/apps/web
+```

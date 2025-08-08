@@ -15,16 +15,12 @@ find_package(SDL3)
 add_subdirectory(libs/common)
 add_subdirectory(libs/ui_imgui)
 if (EMSCRIPTEN)
-add_subdirectory(apps/web)
-target_include_directories(slime_mold_web PRIVATE
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
-)
+    add_subdirectory(apps/web)
 else()
-add_subdirectory(apps/native)
-target_include_directories(slime_mold PRIVATE
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
+    add_subdirectory(apps/native)
+    target_include_directories(slime_mold PRIVATE
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
 )
 endif()
 

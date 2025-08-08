@@ -3,30 +3,23 @@
 #define SDL_MAIN_HANDLED
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 #endif
-#define USE_AVX 1
 
 #include "ui_imgui/ui.h"
 
-#include <vector>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <string>
-#include <ctime>
-#include <array>
-
-
-
-int main() {
+int main()
+{
     Ui ui;
+    // TODO: we need to use RAII resource destruction
+    //       or class destructor will crash on shutdown
+    if (!ui.initialized()) {
+        return -1;
+    }
 
     bool done = false;
     while (!done) {
         ui.frame();
         done = ui.done();
-
     }
 
-    
     return 0;
 }

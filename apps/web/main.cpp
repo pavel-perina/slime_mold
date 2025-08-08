@@ -5,15 +5,12 @@
 #include <cstdio>
 
 static Ui* g_ui = nullptr;
-static bool g_done = false;
 
 void main_loop() {
-    if (g_done) {
-        emscripten_cancel_main_loop();
-        return;
-    }
     g_ui->frame();
-    g_done = g_ui->done();
+    if (g_ui->done();) {
+        emscripten_cancel_main_loop();
+    }
 }
 
 int main() {

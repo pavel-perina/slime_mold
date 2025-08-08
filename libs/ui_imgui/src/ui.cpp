@@ -22,6 +22,10 @@ enum CMapInterpolation
 } // anonymous namespace
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO: initialization error handling
+// TODO: separate logic (agent, palette) from ImGui
+
 class Ui::Private {
 public:
     //! Constructor
@@ -32,6 +36,7 @@ public:
     SDL_Renderer* renderer = nullptr;
     SDL_Texture*  texture  = nullptr;
     bool done = false;
+    bool initialized = false;
     
     AgentPreset agent;
 
@@ -190,14 +195,16 @@ void Ui::Private::renderToPixels(std::vector<uint8_t>& pixels, const float* fiel
 }
 
 
-
-
 Ui::Ui()
     : m_p(std::make_unique<Private>())
 {
     constexpr size_t TOTAL_WIDTH = 224 + SlimeMoldSimulation::WIDTH;
     SDL_Init(SDL_INIT_VIDEO);
     m_p->window = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, SlimeMoldSimulation::HEIGHT, 0);
+    if (!m_p->window) {
+        SDL_Log("Failed to create window: %s", SDL_GetError());
+        return;
+    }
     m_p->renderer = SDL_CreateRenderer(m_p->window, nullptr);
     m_p->texture = SDL_CreateTexture(
         m_p->renderer,
@@ -214,6 +221,7 @@ Ui::Ui()
 
     ImGui_ImplSDL3_InitForSDLRenderer(m_p->window, m_p->renderer);
     ImGui_ImplSDLRenderer3_Init(m_p->renderer);
+    m_p->initialized = true;
 }
 
 
@@ -228,6 +236,13 @@ Ui::~Ui()
     SDL_DestroyWindow(m_p->window);
     SDL_Quit();
 }
+
+
+bool Ui::initialized()
+{
+    return m_p->initialized;
+}
+
 
 bool Ui::done()
 {
