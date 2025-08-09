@@ -1,4 +1,4 @@
-#include "common/slime_mold.h"
+#include "common/slime_mold_simulation.h"
 #include "common/presets.h"
 
 #include <cmath>

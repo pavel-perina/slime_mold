@@ -5,7 +5,7 @@
 
 struct PalettePreset {
     std::string name;
-    ColorRGB paletteA, paletteB, paletteC;
+    ColorRGB palette[3];
 };
 
 struct AgentPreset {

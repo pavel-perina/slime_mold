@@ -1,7 +1,5 @@
 //! \file main.cpp
-
 #ifdef _WIN32
-//#define SDL_MAIN_HANDLED
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 #endif
 
@@ -19,14 +17,13 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
     g_ui->frame();
-    if (g_ui->done()) {
-        return SDL_APP_SUCCESS;
-    }
-    return SDL_APP_CONTINUE;
+    return g_ui->done()
+        ? SDL_APP_SUCCESS
+        : SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
-    // Optional: handle events directly if needed
+    // Handle events directly if needed
     return SDL_APP_CONTINUE;
 }
 
