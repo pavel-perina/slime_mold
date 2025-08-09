@@ -2,10 +2,11 @@
 #include "colors.h"
 #include <string>
 #include <vector>
+#include <array>
 
 struct PalettePreset {
     std::string name;
-    ColorRGB paletteA, paletteB, paletteC;
+    std::array<ColorRGB, 3> palette;
 };
 
 struct AgentPreset {
@@ -14,5 +15,5 @@ struct AgentPreset {
     float palette_mid;
 };
 
-extern const std::vector<AgentPreset>   presetAgents();
-extern const std::vector<PalettePreset> presetPalettes();
+extern const std::vector<AgentPreset>&   presetAgents();
+extern const std::vector<PalettePreset>& presetPalettes();

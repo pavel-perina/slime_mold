@@ -1,13 +1,13 @@
-﻿#include "colors.h"
+﻿#include "common/colors.h"
 
 #include <cmath>
 #include <algorithm>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include <numbers>
 
 namespace {
+
+constexpr float TO_RADIANS = std::numbers::pi_v<float> / 180.0f;
+constexpr float TO_DEGREES = 180.0f / std::numbers::pi_v<float>;
 
 inline float clamp(float x)
 {
@@ -25,7 +25,7 @@ inline float invGamma(float c)
 
 
 // Gamma encode Linear RGB → sRGB
-inline float gammaEncode(float c)
+inline float gammaCorrect(float c)
 {
     return (c <= 0.0031308f)
         ? (12.92f * c)
@@ -45,7 +45,7 @@ inline float interpolateHue(float h1, float h2, float t)
 
 ColorLAB LCHtoLAB(const ColorLCH& lch)
 {
-    float h_rad = lch.H * (M_PI / 180.0f);
+    const float h_rad = lch.H * TO_RADIANS;
     return { lch.L, lch.C * std::cos(h_rad), lch.C * std::sin(h_rad) };
 }
 
@@ -53,7 +53,7 @@ ColorLAB LCHtoLAB(const ColorLCH& lch)
 ColorLCH LABtoLCH(const ColorLAB& lab)
 {
     float C = std::sqrt(lab.a * lab.a + lab.b * lab.b);
-    float H = std::atan2(lab.b, lab.a) * (180.0f / M_PI);
+    float H = std::atan2(lab.b, lab.a) * TO_DEGREES;
     if (H < 0.0f)
         H += 360.0f;
     return { lab.L, C, H };
@@ -62,35 +62,34 @@ ColorLCH LABtoLCH(const ColorLAB& lab)
 
 ColorLAB RGBtoLAB(const ColorRGB& rgb)
 {
-    float r = invGamma(rgb.r);
-    float g = invGamma(rgb.g);
-    float b = invGamma(rgb.b);
+    const float r = invGamma(rgb.r);
+    const float g = invGamma(rgb.g);
+    const float b = invGamma(rgb.b);
 
     // Convert to XYZ (sRGB D65)
-    float X = r * 0.4124f + g * 0.3576f + b * 0.1805f;
-    float Y = r * 0.2126f + g * 0.7152f + b * 0.0722f;
-    float Z = r * 0.0193f + g * 0.1192f + b * 0.9505f;
+    float x = r * 0.4124f + g * 0.3576f + b * 0.1805f;
+    float y = r * 0.2126f + g * 0.7152f + b * 0.0722f;
+    float z = r * 0.0193f + g * 0.1192f + b * 0.9505f;
 
     // Normalize by D65 white point
-    X /= 0.95047f;
-    Y /= 1.00000f;
-    Z /= 1.08883f;
+    x /= 0.95047f;
+    y /= 1.00000f;
+    z /= 1.08883f;
 
     // f(t) helper
     auto f = [](float t) -> float {
         return (t > 0.008856f) ? std::cbrt(t) : (7.787f * t + 16.0f / 116.0f);
         };
 
-    float fx = f(X);
-    float fy = f(Y);
-    float fz = f(Z);
+    const float fx = f(x);
+    const float fy = f(y);
+    const float fz = f(z);
 
-    {
-        float l = (116.0f * fy) - 16.0f;
-        float a = 500.0f * (fx - fy);
-        float b = 200.0f * (fy - fz);
-        return { l , a, b };
-    }
+    return {
+        .L = (116.0f * fy) - 16.0f,
+        .a = 500.0f * (fx - fy),
+        .b = 200.0f * (fy - fz)
+    };
 }
 
 
@@ -114,16 +113,9 @@ ColorRGB LABtoRGB(const ColorLAB& lab)
     z *= refZ;
 
     // XYZ to linear RGB
-    float r = x *  0.032406f + y * -0.015372f + z * -0.004986f;
-    float g = x * -0.009689f + y *  0.018758f + z *  0.000415f;
-    float b = x *  0.000557f + y * -0.002040f + z *  0.010570f;
-
-    // Gamma correction (sRGB)
-    auto gammaCorrect = [](float c) -> float {
-        return (c > 0.0031308f)
-            ? (1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f)
-            : (12.92f * c);
-        };
+    const float r = x *  0.032406f + y * -0.015372f + z * -0.004986f;
+    const float g = x * -0.009689f + y *  0.018758f + z *  0.000415f;
+    const float b = x *  0.000557f + y * -0.002040f + z *  0.010570f;
 
     return { .r = clamp(gammaCorrect(r)),  .g = clamp(gammaCorrect(g)), .b = clamp(gammaCorrect(b)) };
 }

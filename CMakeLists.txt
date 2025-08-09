@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
-project(slime_mold_simulator)
+project(slime_mold_simulator LANGUAGES CXX)
+
+# === UI Backend Selection ===
+set(UI_BACKEND "sdl" CACHE STRING "UI backend: sdl or qml")
+set_property(CACHE UI_BACKEND PROPERTY STRINGS "sdl" "qml")
+
+option(USE_AVX2 "Enable AVX2 support" OFF)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,41 +16,21 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-find_package(SDL3 REQUIRED)
-
-# ImGui setup
-set(IMGUI_DIR external/imgui)
-
-
-set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer3.cpp
-)
-
-add_executable(slime_mold 
-    src/slimemold.cpp
-    src/colors.cpp
-    src/presets.cpp
-    )
-
-# Add ImGui sources to your existing target
-target_sources(slime_mold PRIVATE ${IMGUI_SOURCES})
-
-# Add ImGui include directories
-target_include_directories(slime_mold PRIVATE
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
-)
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")
-    target_compile_options(slime_mold PRIVATE -mavx2)
+add_subdirectory(libs/common)
+if(UI_BACKEND STREQUAL "sdl")
+    find_package(SDL3 REQUIRED CONFIG)
+    add_subdirectory(libs/ui_imgui)
+    add_subdirectory(apps/sdl)
+elseif(UI_BACKEND STREQUAL "qml")
+    find_package(Qt6 REQUIRED COMPONENTS Quick)
+    message(FATAL_ERROR "QtQuick/QML build not yet ready.")
+    #add_subdirectory(apps/qt)
+else()
+    message(FATAL_ERROR "UI_BACKEND must be 'sdl' or 'qml'")
 endif()
 
 
-target_link_libraries(slime_mold PRIVATE SDL3::SDL3)
+#if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+#    message(STATUS "Enabling AVX2 for Linux build with GCC/Clang")
+#    target_compile_options(slime_mold PRIVATE -mavx2 -O3 -ffast-math)
+#endif()
