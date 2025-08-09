@@ -35,7 +35,7 @@ Note: as of 2025-08-04 this code uses AVX2 instructions, which is supported by I
   ```
   git submodule update --init
   ```
-* Install/build dependencies (SDL3)
+* Install/build dependencies (SDL3) - for some reason you have to run this script after each cleaning of CMake cache as it likely prepares some file for CMake
   ```
   .\conan_install.bat
   ```

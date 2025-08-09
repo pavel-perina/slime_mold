@@ -1,5 +1,7 @@
 //! \file main.cpp
+
 #ifdef _WIN32
+// Open without console on Windows
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 #endif
 

@@ -1,9 +1,11 @@
 //! \file slime_mold_viewmodel.h
+
 #pragma once
-#include <string>
-#include <memory>
-#include <array>
+
 #include "common/presets.h"
+
+#include <array>
+#include <memory>
 
 class SlimeMoldViewModel {
 public:

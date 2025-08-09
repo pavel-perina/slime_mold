@@ -35,8 +35,8 @@ public:
     uint64_t last_counter = 0;
 };
 
-const std::array<const char*, 3> SlimeMoldViewModel::Private::cmapLabels = { "RGB", "LAB", "LCH" };
 
+const std::array<const char*, 3> SlimeMoldViewModel::Private::cmapLabels = { "RGB", "LAB", "LCH" };
 
 
 SlimeMoldViewModel::Private::Private()

@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿//! \file colors.h
+
+#pragma once
 
 #include <vector>
 
