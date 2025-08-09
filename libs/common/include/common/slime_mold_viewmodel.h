@@ -21,21 +21,14 @@ public:
     // UI State
     void selectAgentPreset(size_t index);
     void selectPalettePreset(size_t index);
-    size_t presetsCount() const;
-    size_t palettesCount() const;
     size_t selectedPreset() const;
     size_t selectedPalette() const;
-    std::string presetName(size_t index) const;
-    std::string selectedPresetName() const;
-    std::string paletteName(size_t index) const;
-    std::string selectedPaletteName() const;
 
     AgentPreset agent() const;
     void setAgent(const AgentPreset&);
 
     std::array<ColorRGB, 3> palette() const;
     void setPalette(const std::array<ColorRGB, 3>&);
-
 
     void updatePixels(uint8_t* pixels);
     void reset();

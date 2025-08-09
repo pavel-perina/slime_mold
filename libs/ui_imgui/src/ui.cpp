@@ -3,6 +3,8 @@
 #include "common/slime_mold_viewmodel.h"
 // FIXME: holds width, height globals
 #include "common/slime_mold_simulation.h"
+#include "common/presets.h"
+#include "common/colors.h"
 
 #include <SDL3/SDL.h>
 
@@ -190,10 +192,12 @@ void Ui::frame()
     ImGui::Columns(1);
 #endif
     ImGui::Separator();
-    if (ImGui::BeginCombo("##Behavior", vm.selectedPresetName().c_str())) {
-        for (int i = 0; i < vm.presetsCount(); i++) {
+    size_t selectedPreset = vm.selectedPreset();
+    size_t selectedPalette = vm.selectedPalette();
+    if (ImGui::BeginCombo("##Behavior", presetAgents()[selectedPreset].name.c_str())) {
+        for (int i = 0; i < presetAgents().size(); i++) {
             bool is_selected = (vm.selectedPreset() == i);
-            if (ImGui::Selectable(vm.presetName(i).c_str(), is_selected)) {
+            if (ImGui::Selectable(presetAgents()[i].name.c_str(), is_selected)) {
                 vm.selectAgentPreset(i);
             }
             if (is_selected) {
@@ -203,10 +207,10 @@ void Ui::frame()
         ImGui::EndCombo();
     }
 
-    if (ImGui::BeginCombo("##Palette", vm.selectedPaletteName().c_str())) {
-        for (int i = 0; i < vm.palettesCount(); i++) {
+    if (ImGui::BeginCombo("##Palette", presetPalettes()[selectedPalette].name.c_str())) {
+        for (int i = 0; i < presetPalettes().size(); i++) {
             bool is_selected = (vm.selectedPalette() == i);
-            if (ImGui::Selectable(vm.paletteName(i).c_str(), is_selected)) {
+            if (ImGui::Selectable(presetPalettes()[i].name.c_str(), is_selected)) {
                 vm.selectPalettePreset(i);
             }
             if (is_selected) {

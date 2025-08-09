@@ -2,7 +2,6 @@
 #include "common/slime_mold_viewmodel.h"
 #include "common/slime_mold_simulation.h"
 
-
 class SlimeMoldViewModel::Private
 {
 public:
@@ -10,12 +9,6 @@ public:
 
     //! Simulation
     SlimeMoldSimulation sim;
-
-    //! Agent behaviour presets
-    std::vector<AgentPreset> presets;
-
-    //! Palette presets
-    std::vector<PalettePreset> palettes;
 
     size_t cmapInterpolation = CMAP_INTERP_LCH;
     size_t selectedPreset = 0;
@@ -49,8 +42,6 @@ const std::array<const char*, 3> SlimeMoldViewModel::Private::cmapLabels = { "RG
 SlimeMoldViewModel::Private::Private()
 {
     pixels.resize(SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT * 4, 0);
-    presets = presetAgents();
-    palettes = presetPalettes();
 }
 
 
@@ -104,26 +95,13 @@ SlimeMoldViewModel::~SlimeMoldViewModel() = default;
 
 void SlimeMoldViewModel::selectAgentPreset(size_t index)
 {
-    m_p->agent = m_p->presets[index];
+    m_p->agent = presetAgents()[index];
 }
 
 
 void SlimeMoldViewModel::selectPalettePreset(size_t index)
 {
-    m_p->palette[0] = m_p->palettes[index].palette[0];
-    m_p->palette[1] = m_p->palettes[index].palette[1];
-    m_p->palette[2] = m_p->palettes[index].palette[2];
-}
-
-size_t SlimeMoldViewModel::presetsCount() const
-{
-    return m_p->presets.size();
-}
-
-
-size_t SlimeMoldViewModel::palettesCount() const
-{
-    return m_p->palettes.size();
+    m_p->palette = presetPalettes()[index].palette;
 }
 
 
@@ -135,30 +113,6 @@ size_t SlimeMoldViewModel::selectedPreset() const
 size_t SlimeMoldViewModel::selectedPalette() const
 {
     return m_p->selectedPalette;
-}
-
-
-std::string SlimeMoldViewModel::presetName(size_t index) const
-{
-    return m_p->presets[index].name;
-}
-
-
-std::string SlimeMoldViewModel::selectedPresetName() const
-{
-    return presetName(m_p->selectedPreset);
-}
-
-
-std::string SlimeMoldViewModel::paletteName(size_t index) const
-{
-    return m_p->palettes[index].name;
-}
-
-
-std::string SlimeMoldViewModel::selectedPaletteName() const
-{
-    return paletteName(m_p->selectedPalette);
 }
 
 
