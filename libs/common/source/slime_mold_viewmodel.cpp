@@ -40,10 +40,10 @@ public:
 
     //! FPS counter
     uint64_t last_counter = 0;
-
-    /*static const std::array<const char*, 3> cmapLabels = { "RGB", "LAB", "LCH" };*/
-
 };
+
+const std::array<const char*, 3> SlimeMoldViewModel::Private::cmapLabels = { "RGB", "LAB", "LCH" };
+
 
 
 SlimeMoldViewModel::Private::Private()
@@ -72,22 +72,22 @@ std::vector<uint8_t> SlimeMoldViewModel::Private::preparePalette()
     }
     auto g1 = gradientFn(palette[0], palette[1], mid);
     auto g2 = gradientFn(palette[1], palette[2], PALETTE_SIZE - mid);
-    std::vector<uint8_t> palette(PALETTE_SIZE * 4);
+    std::vector<uint8_t> result(PALETTE_SIZE * 4);
     for (size_t i = 0; i < PALETTE_SIZE; i++) {
-        palette[i * 4] = 255.0f;
+        result[i * 4] = 255.0f;
         if (i < mid) {
-            palette[i * 4 + 1] = g1[i].r * 255.0f;
-            palette[i * 4 + 2] = g1[i].g * 255.0f;
-            palette[i * 4 + 3] = g1[i].b * 255.0f;
+            result[i * 4 + 1] = g1[i].r * 255.0f;
+            result[i * 4 + 2] = g1[i].g * 255.0f;
+            result[i * 4 + 3] = g1[i].b * 255.0f;
         }
         else {
             size_t j = i - mid;
-            palette[i * 4 + 1] = g2[j].r * 255.0f;
-            palette[i * 4 + 2] = g2[j].g * 255.0f;
-            palette[i * 4 + 3] = g2[j].b * 255.0f;
+            result[i * 4 + 1] = g2[j].r * 255.0f;
+            result[i * 4 + 2] = g2[j].g * 255.0f;
+            result[i * 4 + 3] = g2[j].b * 255.0f;
         }
     }
-    return palette;
+    return result;
 }
 
 

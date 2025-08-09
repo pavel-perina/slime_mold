@@ -17,8 +17,8 @@ struct Agent {
 
 
 inline void rotate(float& dx, float& dy, float cos_a, float sin_a) {
-    float ndx = dx * cos_a - dy * sin_a;
-    float ndy = dx * sin_a + dy * cos_a;
+    const float ndx = dx * cos_a - dy * sin_a;
+    const float ndy = dx * sin_a + dy * cos_a;
     dx = ndx;
     dy = ndy;
 }
@@ -32,7 +32,7 @@ class SlimeMoldSimulation::Private
 public:
     Private();
     inline float sampleField(float x, float y) const;
-    inline void deposit(Agent& a);
+    inline void deposit(const Agent& a);
     std::vector<Agent> agents;
     std::vector<float> field;
     void resetAgents();
@@ -40,6 +40,7 @@ public:
     void clearField();
     void updateAgents(const AgentPreset& p);
 };
+
 
 SlimeMoldSimulation::Private::Private()
 {
@@ -76,7 +77,7 @@ void SlimeMoldSimulation::Private::diffuse(float evaporate)
         _mm256_storeu_ps(&data[i], values);
     }
 #else
-    for (auto& v : field)
+    for (float& v : field)
         v *= evaporate;
 #endif
 }
@@ -84,24 +85,24 @@ void SlimeMoldSimulation::Private::diffuse(float evaporate)
 
 void SlimeMoldSimulation::Private::clearField()
 {
-    for (auto& v : field)
+    for (float& v : field)
         v = 0.0f;
 }
 
 
 float SlimeMoldSimulation::Private::sampleField(float x, float y) const
 {
-    int xi = ((int)(x + 0.5f) + WIDTH) % WIDTH;
-    int yi = ((int)(y + 0.5f) + HEIGHT) % HEIGHT;
-    int idx = yi * WIDTH + xi;
+    const int xi = ((int)(x + 0.5f) + WIDTH) % WIDTH;
+    const int yi = ((int)(y + 0.5f) + HEIGHT) % HEIGHT;
+    const int idx = yi * WIDTH + xi;
     return field[idx];
 }
 
 
-void SlimeMoldSimulation::Private::deposit(Agent& a) {
-    int xi = ((int)(a.x + 0.5f) + WIDTH) % WIDTH;
-    int yi = ((int)(a.y + 0.5f) + HEIGHT) % HEIGHT;
-    int idx = yi * WIDTH + xi;
+void SlimeMoldSimulation::Private::deposit(const Agent& a) {
+    const int xi = ((int)(a.x + 0.5f) + WIDTH) % WIDTH;
+    const int yi = ((int)(a.y + 0.5f) + HEIGHT) % HEIGHT;
+    const int idx = yi * WIDTH + xi;
     field[idx] += 1.0f;
 }
 
