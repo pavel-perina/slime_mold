@@ -5,6 +5,8 @@ project(slime_mold_simulator LANGUAGES CXX)
 set(UI_BACKEND "sdl" CACHE STRING "UI backend: sdl or qml")
 set_property(CACHE UI_BACKEND PROPERTY STRINGS "sdl" "qml")
 
+option(USE_AVX2 "Enable AVX2 support" OFF)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

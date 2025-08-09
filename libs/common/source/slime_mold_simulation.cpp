@@ -5,7 +5,7 @@
 #include <vector>
 #include <numbers>
 
-#if USE_AVX
+#if defined(USE_AVX2)
 #include <immintrin.h>
 #endif
 
@@ -65,7 +65,7 @@ void SlimeMoldSimulation::Private::resetAgents()
 void SlimeMoldSimulation::Private::diffuse(float evaporate)
 {
     // Evaporation only for simplicity
-#if USE_AVX
+#if defined(USE_AVX2)
     const size_t count = field.size();
     constexpr size_t avxWidth = 8; // 8 floats per register
     float* data = field.data();

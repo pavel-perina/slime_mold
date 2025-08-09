@@ -193,10 +193,10 @@ void SlimeMoldViewModel::updatePixels(uint8_t* pixels)
     const float* field = m_p->sim.data();
 
     const auto palette = m_p->preparePalette();
-#if USE_AVX
+#if defined(USE_AVX2)
     // Initialize scale and clamp
-    const __m256 kVec = _mm256_set1_ps(10.0f * PALETTE_SIZE / 256.0f);
-    const __m256 maxIdx = _mm256_set1_ps(static_cast<float>(PALETTE_SIZE - 1));
+    const __m256 kVec = _mm256_set1_ps(10.0f * Private::PALETTE_SIZE / 256.0f);
+    const __m256 maxIdx = _mm256_set1_ps(static_cast<float>(Private::PALETTE_SIZE - 1));
 
     // Process 8 pixels at a time
     constexpr size_t avxWidth = 8;
@@ -215,7 +215,7 @@ void SlimeMoldViewModel::updatePixels(uint8_t* pixels)
             4                                               // scale: each index * 4 bytes
         );
         // Store colors to pixels
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels.data() + i * 4), colors);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels + i * 4), colors);
     }
 #else
     constexpr float k = 10.0f * Private::PALETTE_SIZE / 256.0f;
