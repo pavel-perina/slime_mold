@@ -92,7 +92,7 @@ void SlimeMoldSimulation::Private::diffuse(float evaporate)
         _mm256_storeu_ps(&data[i], values);
     }
 #else
-    for (float& v : field)
+    for (float& v : m_field)
         v *= evaporate;
 #endif
 }
