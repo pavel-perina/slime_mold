@@ -101,12 +101,14 @@ SlimeMoldViewModel::~SlimeMoldViewModel() = default;
 
 void SlimeMoldViewModel::selectAgentPreset(size_t index)
 {
+    m_p->selectedPreset = index;
     m_p->agent = presetAgents()[index];
 }
 
 
 void SlimeMoldViewModel::selectPalettePreset(size_t index)
 {
+    m_p->selectedPalette = index;
     m_p->palette = presetPalettes()[index].palette;
 }
 

@@ -1,4 +1,4 @@
-#include "common/slime_mold_simulation.h"
+﻿#include "common/slime_mold_simulation.h"
 #include "common/presets.h"
 
 #include <algorithm>
@@ -7,11 +7,14 @@
 #include <numbers>
 #include <vector>
 
+// This actually help as it avoids expensive modulo operations
+// and replaces them by conditional parallel add using masks.
 #if defined(USE_AVX2)
 #include <immintrin.h>
 #endif
 
-#define DO_SORTING 1
+// Does not seem to help, but idea was to make memory access less random.
+#define DO_SORTING 0
 
 namespace {
 
@@ -81,7 +84,10 @@ void SlimeMoldSimulation::Private::resetAgents()
 void SlimeMoldSimulation::Private::diffuse(float evaporate)
 {
     // Evaporation only for simplicity
-#if defined(USE_AVX2)
+#if not defined(USE_AVX2)
+    for (float& v : m_field)
+        v *= evaporate;
+#else
     const size_t count = m_field.size();
     constexpr size_t avxWidth = 8; // 8 floats per register
     float* data = m_field.data();
@@ -91,9 +97,6 @@ void SlimeMoldSimulation::Private::diffuse(float evaporate)
         values = _mm256_mul_ps(values, evaporateVec);
         _mm256_storeu_ps(&data[i], values);
     }
-#else
-    for (float& v : m_field)
-        v *= evaporate;
 #endif
 }
 
@@ -152,9 +155,60 @@ void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
         const float ry = a.y + rdy * sensor_dist;
 
         // Sample sensors
+#if not defined USE_AVX2
         const float c = sampleField(cx, cy);
         const float l = sampleField(lx, ly);
         const float r = sampleField(rx, ry);
+#else
+        float c, l, r;
+        {
+            // This is actually SSE2 or SSE3
+            // === Step 1: Pack x and y into __m128 ===
+            __m128 x_vec = _mm_set_ps(0.0f, rx, lx, cx);  // [3]=0, [2]=rx, [1]=lx, [0]=cx (for some reason backwards)
+            __m128 y_vec = _mm_set_ps(0.0f, ry, ly, cy);  // [3]=0, [2]=ry, [1]=ly, [0]=cy
+
+            // === Step 2: Round: x = (int)(x + 0.5f) ===
+            __m128 bias = _mm_set1_ps(0.5f);
+            x_vec = _mm_add_ps(x_vec, bias);
+            y_vec = _mm_add_ps(y_vec, bias);
+            __m128i xi_vec = _mm_cvtps_epi32(x_vec);  // [cx, lx, rx, 0]
+            __m128i yi_vec = _mm_cvtps_epi32(y_vec);
+
+            // === Step 3: Wrap in [0, w) and [0, h) ===
+            __m128i w_vec = _mm_set1_epi32(m_width);
+            __m128i h_vec = _mm_set1_epi32(m_height);
+            // --- Wrap x: if < 0 → add w; if >= w → sub w ---
+            __m128i zero = _mm_setzero_si128();
+            __m128i mask_x_neg = _mm_cmpgt_epi32(zero, xi_vec);  // xi < 0
+            __m128i add_w = _mm_and_si128(mask_x_neg, w_vec);
+            xi_vec = _mm_add_epi32(xi_vec, add_w);
+
+            __m128i mask_x_ovf = _mm_cmpgt_epi32(xi_vec, _mm_sub_epi32(w_vec, _mm_set1_epi32(1)));  // xi >= w
+            __m128i sub_w = _mm_and_si128(mask_x_ovf, w_vec);
+            xi_vec = _mm_sub_epi32(xi_vec, sub_w);
+
+            // --- Wrap y ---
+            __m128i mask_y_neg = _mm_cmpgt_epi32(zero, yi_vec);  // yi < 0
+            __m128i add_h = _mm_and_si128(mask_y_neg, h_vec);
+            yi_vec = _mm_add_epi32(yi_vec, add_h);
+
+            __m128i mask_y_ovf = _mm_cmpgt_epi32(yi_vec, _mm_sub_epi32(h_vec, _mm_set1_epi32(1)));  // yi >= h
+            __m128i sub_h = _mm_and_si128(mask_y_ovf, h_vec);
+            yi_vec = _mm_sub_epi32(yi_vec, sub_h);
+
+            // === Step 4: Compute idx = y * w + x ===
+            __m128i idx_vec = _mm_add_epi32(_mm_mullo_epi32(yi_vec, w_vec), xi_vec);
+
+            // === Step 5: Gather m_field[idx] for 3 values ===
+            // SSE doesn't have gather, so we extract and do scalar loads
+            alignas(16) int idxs[4];
+            _mm_store_si128((__m128i*)idxs, idx_vec);
+
+            c = m_field[idxs[0]];
+            l = m_field[idxs[1]];
+            r = m_field[idxs[2]];
+        }
+#endif
 
 
         // Adjust angle
@@ -187,9 +241,69 @@ void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
         if (a.y >= m_height) a.y -= m_height;
 
     }
+#if not defined USE_AVX2
     for (const auto& a : m_agents) {
         deposit(a);
     }
+#else
+    const size_t nAgents = m_agents.size();
+    size_t i = 0;
+    for (; i + 4 <= nAgents; i += 4) {
+        Agent *agents = &m_agents[i];
+        // === Step 1: Load x and y into vectors ===
+        __m128 x_vec = _mm_set_ps(agents[3].x, agents[2].x, agents[1].x, agents[0].x);
+        __m128 y_vec = _mm_set_ps(agents[3].y, agents[2].y, agents[1].y, agents[0].y);
+
+        // === Step 2: Round: (int)(x + 0.5f) ===
+        __m128 bias = _mm_set1_ps(0.5f);
+        x_vec = _mm_add_ps(x_vec, bias);
+        y_vec = _mm_add_ps(y_vec, bias);
+
+        __m128i xi_vec = _mm_cvtps_epi32(x_vec);
+        __m128i yi_vec = _mm_cvtps_epi32(y_vec);
+
+        // === Step 3: Wrap in [0, w) and [0, h) ===
+        __m128i w_vec = _mm_set1_epi32(m_width);
+        __m128i h_vec = _mm_set1_epi32(m_height);
+        __m128i zero = _mm_setzero_si128();
+
+        // Wrap x: if < 0 → +w; if >= w → -w
+        __m128i mask_x_neg = _mm_cmpgt_epi32(zero, xi_vec);
+        __m128i add_w = _mm_and_si128(mask_x_neg, w_vec);
+        xi_vec = _mm_add_epi32(xi_vec, add_w);
+
+        __m128i mask_x_ovf = _mm_cmpgt_epi32(xi_vec, _mm_sub_epi32(w_vec, _mm_set1_epi32(1)));
+        __m128i sub_w = _mm_and_si128(mask_x_ovf, w_vec);
+        xi_vec = _mm_sub_epi32(xi_vec, sub_w);
+
+        // Wrap y
+        __m128i mask_y_neg = _mm_cmpgt_epi32(zero, yi_vec);
+        __m128i add_h = _mm_and_si128(mask_y_neg, h_vec);
+        yi_vec = _mm_add_epi32(yi_vec, add_h);
+
+        __m128i mask_y_ovf = _mm_cmpgt_epi32(yi_vec, _mm_sub_epi32(h_vec, _mm_set1_epi32(1)));
+        __m128i sub_h = _mm_and_si128(mask_y_ovf, h_vec);
+        yi_vec = _mm_sub_epi32(yi_vec, sub_h);
+
+        // === Step 4: Compute idx = y * w + x ===
+        __m128i idx_vec = _mm_add_epi32(
+            _mm_mullo_epi32(yi_vec, w_vec),
+            xi_vec
+        );
+
+        // === Step 5: Scatter RMW: m_field[idx] += 1.0f ===
+        alignas(16) int idxs[4];
+        _mm_store_si128((__m128i*)idxs, idx_vec);
+
+        m_field[idxs[0]] += 1.0f;
+        m_field[idxs[1]] += 1.0f;
+        m_field[idxs[2]] += 1.0f;
+        m_field[idxs[3]] += 1.0f;
+    }
+    for (; i < nAgents; ++i)
+        deposit(m_agents[i]);
+
+#endif
 
 
     ++m_passes;
