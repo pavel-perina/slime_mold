@@ -1,6 +1,8 @@
 #include "common/slime_mold_simulation.h"
 #include "common/presets.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <numbers>
 #include <vector>
@@ -8,6 +10,8 @@
 #if defined(USE_AVX2)
 #include <immintrin.h>
 #endif
+
+#define DO_SORTING 0
 
 namespace {
 
@@ -39,11 +43,13 @@ public:
     void diffuse(float evaporate);
     void clearField();
     void updateAgents(const AgentPreset& p);
+    void sortAgents();
 
     size_t m_width, m_height;
     size_t m_numAgents;
     std::vector<Agent> m_agents;
     std::vector<float> m_field;
+    size_t m_passes;
 };
 
 
@@ -51,6 +57,7 @@ SlimeMoldSimulation::Private::Private(size_t width, size_t height, size_t numAge
     : m_width(width)
     , m_height(height)
     , m_numAgents(numAgents)
+    , m_passes(0)
 {
     m_agents.resize(numAgents);
     m_field.resize(width * height, 0.0f);
@@ -93,8 +100,7 @@ void SlimeMoldSimulation::Private::diffuse(float evaporate)
 
 void SlimeMoldSimulation::Private::clearField()
 {
-    for (float& v : m_field)
-        v = 0.0f;
+    diffuse(0.0);
 }
 
 
@@ -182,6 +188,14 @@ void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
 
         deposit(a);
     }
+
+    ++m_passes;
+#if DO_SORTING
+    if (m_passes % 32) {
+        sortAgents();
+    }
+#endif
+
 }
 
 
@@ -211,4 +225,44 @@ void SlimeMoldSimulation::reset()
 const float * SlimeMoldSimulation::data()
 {
     return m_p->m_field.data();
+}
+
+
+void SlimeMoldSimulation::Private::sortAgents()
+{
+    // reuse vectors, resize when needed
+    static std::vector<size_t> bucketCounts;
+    static std::vector<size_t> bucketStartOffsets;
+    static std::vector<size_t> bucketWriteOffsets;
+    static std::vector<Agent> tempAgents;
+    bucketCounts.resize(m_height);
+    bucketStartOffsets.resize(m_height);
+    bucketWriteOffsets.resize(m_height);
+    tempAgents.resize(m_agents.size());
+
+    // count occurrences per row
+    std::ranges::fill(bucketCounts, 0);
+    for (const auto& a : m_agents) {
+        const size_t row = a.y;
+        assert(row < m_height);
+        ++bucketCounts[row];
+    }
+
+    // accumulate them
+    bucketStartOffsets[0] = 0;
+    for (size_t i = 1; i < m_height; ++i) {
+        bucketStartOffsets[i] = bucketStartOffsets[i - 1] + bucketCounts[i - 1];
+    }
+
+    std::ranges::fill(bucketWriteOffsets, 0);
+
+    // copy agents to temporary sorted by row
+    for (const auto& a : m_agents) {
+        const size_t row = a.y;
+        const size_t writeOffset = bucketStartOffsets[row] + bucketWriteOffsets[row];
+        tempAgents[writeOffset] = a;
+        ++bucketWriteOffsets[row];
+    }
+
+    std::ranges::copy(tempAgents, m_agents.begin());
 }
