@@ -28,3 +28,4 @@ elseif(UI_BACKEND STREQUAL "qml")
 else()
     message(FATAL_ERROR "UI_BACKEND must be 'sdl' or 'qml'")
 endif()
+

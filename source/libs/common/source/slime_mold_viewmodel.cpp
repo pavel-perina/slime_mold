@@ -1,6 +1,7 @@
 //! \file slime_mold_viewmodel.cpp
 #include "common/slime_mold_viewmodel.h"
 #include "common/slime_mold_simulation.h"
+#include <immintrin.h>
 
 class SlimeMoldViewModel::Private final
 {
