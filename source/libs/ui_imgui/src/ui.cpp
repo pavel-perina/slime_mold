@@ -1,8 +1,6 @@
 //! \file ui.cpp
 #include "ui_imgui/ui.h"
 #include "common/slime_mold_viewmodel.h"
-// FIXME: holds width, height globals
-#include "common/slime_mold_simulation.h"
 #include "common/presets.h"
 #include "common/colors.h"
 
@@ -16,17 +14,17 @@
 #include <array>
 
 // TODO: initialization error handling
-// TODO: separate logic (agent, palette) from ImGui
 
-class Ui::Private {
+class Ui::Private final
+{
 public:
     //! Constructor
     Private();
 
     // SDL stuff
-    SDL_Window* window = nullptr;
+    SDL_Window*   window  = nullptr;
     SDL_Renderer* renderer = nullptr;
-    SDL_Texture* texture = nullptr;
+    SDL_Texture*  texture  = nullptr;
 
     bool done = false;
     bool initialized = false;
@@ -39,17 +37,17 @@ public:
 
 
 Ui::Private::Private()
+    : viewModel(Ui::SIMULATION_WIDTH, Ui::SIMULATION_HEIGHT)
 {
-    pixels.resize(SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT * 4);
+    pixels.resize(Ui::SIMULATION_WIDTH * Ui::SIMULATION_HEIGHT * 4);
 }
 
 
 Ui::Ui()
     : m_p(std::make_unique<Private>())
 {
-    constexpr size_t TOTAL_WIDTH = 224 + SlimeMoldSimulation::WIDTH;
     SDL_Init(SDL_INIT_VIDEO);
-    m_p->window = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, SlimeMoldSimulation::HEIGHT, 0);
+    m_p->window = SDL_CreateWindow("Slime Mold", TOTAL_WIDTH, SIMULATION_HEIGHT, 0);
     if (!m_p->window) {
         SDL_Log("Failed to create window: %s", SDL_GetError());
         return;
@@ -59,8 +57,8 @@ Ui::Ui()
         m_p->renderer,
         SDL_PIXELFORMAT_ARGB32,
         SDL_TEXTUREACCESS_STREAMING,
-        SlimeMoldSimulation::WIDTH,
-        SlimeMoldSimulation::HEIGHT
+        SIMULATION_WIDTH,
+        SIMULATION_HEIGHT
     );
 
     IMGUI_CHECKVERSION();
@@ -87,13 +85,13 @@ Ui::~Ui()
 }
 
 
-bool Ui::initialized()
+bool Ui::initialized() const noexcept
 {
     return m_p->initialized;
 }
 
 
-bool Ui::done()
+bool Ui::done() const noexcept
 {
     return m_p->done;
 }
@@ -101,10 +99,9 @@ bool Ui::done()
 
 void Ui::frame() 
 {
-    // Do simulation step
-    /*m_p->sim.step(m_p->agent);
-    m_p->renderToPixels(m_p->pixels, m_p->sim.data());*/
     auto &vm = m_p->viewModel;
+
+    // Do simulation step
     vm.updatePixels(m_p->pixels.data());
 
     // Prepare a new frame
@@ -117,11 +114,9 @@ void Ui::frame()
     float fps = 1.0f / delta_time;
     m_p->last_counter = current_counter;
 
-    //AgentPreset& agent = m_p->agent;
-
     // Position the sidebar on the right side
-    ImGui::SetNextWindowPos(ImVec2(SlimeMoldSimulation::WIDTH, 0));
-    ImGui::SetNextWindowSize(ImVec2(SIDEPANEL_WIDTH, SlimeMoldSimulation::HEIGHT));
+    ImGui::SetNextWindowPos(ImVec2(SIMULATION_WIDTH, 0));
+    ImGui::SetNextWindowSize(ImVec2(SIDEPANEL_WIDTH, SIMULATION_HEIGHT));
     ImGui::Begin("Parameters", nullptr,
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove |
@@ -194,10 +189,11 @@ void Ui::frame()
     ImGui::Separator();
     size_t selectedPreset = vm.selectedPreset();
     size_t selectedPalette = vm.selectedPalette();
-    if (ImGui::BeginCombo("##Behavior", presetAgents()[selectedPreset].name.c_str())) {
+    // NOTE: using name.data() is safe, it's initialized from string literal which is null-terminated
+    if (ImGui::BeginCombo("##Behavior", presetAgents()[selectedPreset].name.data())) {
         for (int i = 0; i < presetAgents().size(); i++) {
             bool is_selected = (vm.selectedPreset() == i);
-            if (ImGui::Selectable(presetAgents()[i].name.c_str(), is_selected)) {
+            if (ImGui::Selectable(presetAgents()[i].name.data(), is_selected)) {
                 vm.selectAgentPreset(i);
             }
             if (is_selected) {
@@ -207,10 +203,10 @@ void Ui::frame()
         ImGui::EndCombo();
     }
 
-    if (ImGui::BeginCombo("##Palette", presetPalettes()[selectedPalette].name.c_str())) {
+    if (ImGui::BeginCombo("##Palette", presetPalettes()[selectedPalette].name.data())) {
         for (int i = 0; i < presetPalettes().size(); i++) {
             bool is_selected = (vm.selectedPalette() == i);
-            if (ImGui::Selectable(presetPalettes()[i].name.c_str(), is_selected)) {
+            if (ImGui::Selectable(presetPalettes()[i].name.data(), is_selected)) {
                 vm.selectPalettePreset(i);
             }
             if (is_selected) {
@@ -230,10 +226,10 @@ void Ui::frame()
     SDL_RenderClear(m_p->renderer);
 
     // Define the destination rectangle for the main simulation area
-    const SDL_FRect mainRect = { 0, 0, SlimeMoldSimulation::WIDTH, SlimeMoldSimulation::HEIGHT };
+    constexpr SDL_FRect mainRect = { 0, 0, SIMULATION_WIDTH, SIMULATION_HEIGHT };
 
     // Upload pixel data and render simulation
-    SDL_UpdateTexture(m_p->texture, nullptr, m_p->pixels.data(), SlimeMoldSimulation::WIDTH * 4);
+    SDL_UpdateTexture(m_p->texture, nullptr, m_p->pixels.data(), SIMULATION_WIDTH * 4);
     SDL_RenderTexture(m_p->renderer, m_p->texture, nullptr, &mainRect);
 
     // Render ImGui on top
@@ -248,4 +244,4 @@ void Ui::frame()
             m_p->done = true;
     }
 
-}
+} // Ui::frame method

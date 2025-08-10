@@ -2,10 +2,10 @@
 #include "common/slime_mold_viewmodel.h"
 #include "common/slime_mold_simulation.h"
 
-class SlimeMoldViewModel::Private
+class SlimeMoldViewModel::Private final
 {
 public:
-    Private();
+    Private(size_t width, size_t height);
 
     //! Simulation
     SlimeMoldSimulation sim;
@@ -33,15 +33,20 @@ public:
 
     //! FPS counter
     uint64_t last_counter = 0;
+
+    size_t m_width, m_height;
 };
 
 
 const std::array<const char*, 3> SlimeMoldViewModel::Private::cmapLabels = { "RGB", "LAB", "LCH" };
 
 
-SlimeMoldViewModel::Private::Private()
+SlimeMoldViewModel::Private::Private(size_t width, size_t height)
+    : sim(width, height, 250000)
+    , m_width(width)
+    , m_height(height)
 {
-    pixels.resize(SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT * 4, 0);
+    pixels.resize(width * height * 4, 0);
 }
 
 
@@ -82,8 +87,8 @@ std::vector<uint8_t> SlimeMoldViewModel::Private::preparePalette()
 }
 
 
-SlimeMoldViewModel::SlimeMoldViewModel()
-    : m_p(std::make_unique<Private>())
+SlimeMoldViewModel::SlimeMoldViewModel(size_t width, size_t height)
+    : m_p(std::make_unique<Private>(width, height))
 {
     selectAgentPreset(m_p->selectedPreset);
     selectPalettePreset(m_p->selectedPalette);
@@ -145,16 +150,17 @@ void SlimeMoldViewModel::updatePixels(uint8_t* pixels)
     
     m_p->sim.step(m_p->agent);
     const float* field = m_p->sim.data();
+    const size_t nPixels = m_p->m_width * m_p->m_height;
 
     const auto palette = m_p->preparePalette();
 #if defined(USE_AVX2)
     // Initialize scale and clamp
-    const __m256 kVec = _mm256_set1_ps(10.0f * Private::PALETTE_SIZE / 256.0f);
+    const __m256 kVec   = _mm256_set1_ps(10.0f * Private::PALETTE_SIZE / 256.0f);
     const __m256 maxIdx = _mm256_set1_ps(static_cast<float>(Private::PALETTE_SIZE - 1));
 
     // Process 8 pixels at a time
     constexpr size_t avxWidth = 8;
-    for (size_t i = 0; i < SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT; i += avxWidth) {
+    for (size_t i = 0; i < nPixels; i += avxWidth) {
         // Load 8 field values
         __m256 fieldVals = _mm256_loadu_ps(field + i);
         // Scale and clamp
@@ -175,7 +181,7 @@ void SlimeMoldViewModel::updatePixels(uint8_t* pixels)
     constexpr float k = 10.0f * Private::PALETTE_SIZE / 256.0f;
     const uint32_t* paletteU32 = reinterpret_cast<const uint32_t*>(palette.data());
     uint32_t* pixelsU32 = reinterpret_cast<uint32_t*>(pixels);
-    for (int i = 0; i < SlimeMoldSimulation::WIDTH * SlimeMoldSimulation::HEIGHT; i++) {
+    for (int i = 0; i < nPixels; i++) {
         int c = std::min(field[i] * k, static_cast<float>(Private::PALETTE_SIZE - 1));
         //uint8_t c = (uint8_t)std::min(log(field[i]+2.73f)*20.f, 255.0f);
         pixelsU32[i] = paletteU32[c];

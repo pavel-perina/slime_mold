@@ -2,8 +2,8 @@
 #include "common/presets.h"
 
 #include <cmath>
-#include <vector>
 #include <numbers>
+#include <vector>
 
 #if defined(USE_AVX2)
 #include <immintrin.h>
@@ -11,12 +11,14 @@
 
 namespace {
 
-struct Agent {
+struct Agent
+{
     float x, y, dx, dy;
 };
 
 
-inline void rotate(float& dx, float& dy, float cos_a, float sin_a) {
+inline void rotate(float& dx, float& dy, float cos_a, float sin_a)
+{
     const float ndx = dx * cos_a - dy * sin_a;
     const float ndy = dx * sin_a + dy * cos_a;
     dx = ndx;
@@ -27,25 +29,31 @@ inline void rotate(float& dx, float& dy, float cos_a, float sin_a) {
 
 
 
-class SlimeMoldSimulation::Private
+class SlimeMoldSimulation::Private final
 {
 public:
-    Private();
+    Private(size_t width, size_t height, size_t numAgents);
     inline float sampleField(float x, float y) const;
     inline void deposit(const Agent& a);
-    std::vector<Agent> agents;
-    std::vector<float> field;
     void resetAgents();
     void diffuse(float evaporate);
     void clearField();
     void updateAgents(const AgentPreset& p);
+
+    size_t m_width, m_height;
+    size_t m_numAgents;
+    std::vector<Agent> m_agents;
+    std::vector<float> m_field;
 };
 
 
-SlimeMoldSimulation::Private::Private()
+SlimeMoldSimulation::Private::Private(size_t width, size_t height, size_t numAgents)
+    : m_width(width)
+    , m_height(height)
+    , m_numAgents(numAgents)
 {
-    agents.resize(NUM_AGENTS);
-    field.resize(WIDTH * HEIGHT, 0.0f);
+    m_agents.resize(numAgents);
+    m_field.resize(width * height, 0.0f);
     resetAgents();
 }
 
@@ -53,9 +61,9 @@ SlimeMoldSimulation::Private::Private()
 void SlimeMoldSimulation::Private::resetAgents()
 {
     srand((unsigned)time(0));
-    for (auto& a : agents) {
-        a.x = rand() % WIDTH;
-        a.y = rand() % HEIGHT;
+    for (auto& a : m_agents) {
+        a.x = rand() % m_width;
+        a.y = rand() % m_height;
         float angle = (rand() / (float)RAND_MAX) * 2.0f * std::numbers::pi_v<float>;
         a.dx = std::cos(angle);
         a.dy = std::sin(angle);
@@ -67,9 +75,9 @@ void SlimeMoldSimulation::Private::diffuse(float evaporate)
 {
     // Evaporation only for simplicity
 #if defined(USE_AVX2)
-    const size_t count = field.size();
+    const size_t count = m_field.size();
     constexpr size_t avxWidth = 8; // 8 floats per register
-    float* data = field.data();
+    float* data = m_field.data();
     const __m256 evaporateVec = _mm256_set1_ps(evaporate);
     for (size_t i = 0; i < count; i += avxWidth) {
         __m256 values = _mm256_loadu_ps(data + i);
@@ -85,62 +93,62 @@ void SlimeMoldSimulation::Private::diffuse(float evaporate)
 
 void SlimeMoldSimulation::Private::clearField()
 {
-    for (float& v : field)
+    for (float& v : m_field)
         v = 0.0f;
 }
 
 
 float SlimeMoldSimulation::Private::sampleField(float x, float y) const
 {
-    const int xi = ((int)(x + 0.5f) + WIDTH) % WIDTH;
-    const int yi = ((int)(y + 0.5f) + HEIGHT) % HEIGHT;
-    const int idx = yi * WIDTH + xi;
-    return field[idx];
+    const int xi = ((int)(x + 0.5f) +  m_width) % m_width;
+    const int yi = ((int)(y + 0.5f) + m_height) % m_height;
+    const int idx = yi * m_width + xi;
+    return m_field[idx];
 }
 
 
 void SlimeMoldSimulation::Private::deposit(const Agent& a) {
-    const int xi = ((int)(a.x + 0.5f) + WIDTH) % WIDTH;
-    const int yi = ((int)(a.y + 0.5f) + HEIGHT) % HEIGHT;
-    const int idx = yi * WIDTH + xi;
-    field[idx] += 1.0f;
+    const int xi = ((int)(a.x + 0.5f) +  m_width) % m_width;
+    const int yi = ((int)(a.y + 0.5f) + m_height) % m_height;
+    const int idx = yi * m_width + xi;
+    m_field[idx] += 1.0f;
 }
 
 
 
 void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
-    const float SENSOR_LEFT_COS = std::cos(-p.sensor_angle);
-    const float SENSOR_LEFT_SIN = std::sin(-p.sensor_angle);
+    const float SENSOR_LEFT_COS  = std::cos(-p.sensor_angle);
+    const float SENSOR_LEFT_SIN  = std::sin(-p.sensor_angle);
     const float SENSOR_RIGHT_COS = std::cos(p.sensor_angle);
     const float SENSOR_RIGHT_SIN = std::sin(p.sensor_angle);
 
-    const float TURN_LEFT_COS = std::cos(-p.turn_angle);
-    const float TURN_LEFT_SIN = std::sin(-p.turn_angle);
+    const float TURN_LEFT_COS  = std::cos(-p.turn_angle);
+    const float TURN_LEFT_SIN  = std::sin(-p.turn_angle);
     const float TURN_RIGHT_COS = std::cos(p.turn_angle);
     const float TURN_RIGHT_SIN = std::sin(p.turn_angle);
 
     const float sensor_dist = p.sensor_dist;
     const float step_size = p.step_size;
 
-    for (auto& a : agents) {
+    for (auto& a : m_agents) {
         // Sensor positions
-        float cx = a.x + a.dx * sensor_dist;
-        float cy = a.y + a.dy * sensor_dist;
+        const float cx = a.x + a.dx * sensor_dist;
+        const float cy = a.y + a.dy * sensor_dist;
 
-        float ldx = a.dx * SENSOR_LEFT_COS - a.dy * SENSOR_LEFT_SIN;
-        float ldy = a.dx * SENSOR_LEFT_SIN + a.dy * SENSOR_LEFT_COS;
-        float lx = a.x + ldx * sensor_dist;
-        float ly = a.y + ldy * sensor_dist;
+        const float ldx = a.dx * SENSOR_LEFT_COS - a.dy * SENSOR_LEFT_SIN;
+        const float ldy = a.dx * SENSOR_LEFT_SIN + a.dy * SENSOR_LEFT_COS;
+        const float lx = a.x + ldx * sensor_dist;
+        const float ly = a.y + ldy * sensor_dist;
 
-        float rdx = a.dx * SENSOR_RIGHT_COS - a.dy * SENSOR_RIGHT_SIN;
-        float rdy = a.dx * SENSOR_RIGHT_SIN + a.dy * SENSOR_RIGHT_COS;
-        float rx = a.x + rdx * sensor_dist;
-        float ry = a.y + rdy * sensor_dist;
+        const float rdx = a.dx * SENSOR_RIGHT_COS - a.dy * SENSOR_RIGHT_SIN;
+        const float rdy = a.dx * SENSOR_RIGHT_SIN + a.dy * SENSOR_RIGHT_COS;
+        const float rx = a.x + rdx * sensor_dist;
+        const float ry = a.y + rdy * sensor_dist;
 
         // Sample sensors
-        float c = sampleField(cx, cy);
-        float l = sampleField(lx, ly);
-        float r = sampleField(rx, ry);
+        const float c = sampleField(cx, cy);
+        const float l = sampleField(lx, ly);
+        const float r = sampleField(rx, ry);
 
 
         // Adjust angle
@@ -167,18 +175,18 @@ void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
         a.y += a.dy * step_size;
 
         // Wrap around
-        if (a.x < 0) a.x += WIDTH;
-        if (a.x >= WIDTH) a.x -= WIDTH;
-        if (a.y < 0) a.y += HEIGHT;
-        if (a.y >= HEIGHT) a.y -= HEIGHT;
+        if (a.x < 0)         a.x += m_width;
+        if (a.x >= m_width)  a.x -= m_width;
+        if (a.y < 0)         a.y += m_height;
+        if (a.y >= m_height) a.y -= m_height;
 
         deposit(a);
     }
 }
 
 
-SlimeMoldSimulation::SlimeMoldSimulation()
-    : m_p (std::make_unique<Private>())
+SlimeMoldSimulation::SlimeMoldSimulation(size_t width, size_t height, size_t numAgents)
+    : m_p (std::make_unique<Private>(width, height, numAgents))
 {
 }
 
@@ -202,5 +210,5 @@ void SlimeMoldSimulation::reset()
 
 const float * SlimeMoldSimulation::data()
 {
-    return m_p->field.data();
+    return m_p->m_field.data();
 }

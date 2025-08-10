@@ -7,7 +7,8 @@
 #include <array>
 #include <memory>
 
-class SlimeMoldViewModel {
+class SlimeMoldViewModel final
+{
 public:
     enum CMapInterpolation {
         CMAP_INTERP_RGB,
@@ -16,7 +17,7 @@ public:
         CMAP_INTERP_END
     };
 
-    SlimeMoldViewModel();
+    SlimeMoldViewModel(size_t width, size_t height);
 
     ~SlimeMoldViewModel();
 

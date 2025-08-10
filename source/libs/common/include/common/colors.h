@@ -1,4 +1,6 @@
 ﻿//! \file colors.h
+//! \author Pavel Perina
+//! \date July 2025
 
 #pragma once
 

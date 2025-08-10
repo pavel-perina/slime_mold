@@ -4,7 +4,7 @@
 
 #include <memory>
 
-class Ui
+class Ui final
 {
 public:
 
@@ -12,19 +12,22 @@ public:
     Ui();
 
     //! \brief Destructor
-    virtual ~Ui();
+    ~Ui();
 
     //! \brief Render next frame
     void frame();
 
     //! \brief Check if done (closed window)
-    bool done();
+    [[nodiscard]] bool done() const noexcept;
 
     //! \brief Returns true if class were initialized.
-    bool initialized();
+    [[nodiscard]] bool initialized() const noexcept;
 
 private:
-    static constexpr int SIDEPANEL_WIDTH = 224;
+    static constexpr int SIMULATION_WIDTH  = 640;
+    static constexpr int SIMULATION_HEIGHT = 480;
+    static constexpr int SIDEPANEL_WIDTH   = 224;
+    static constexpr int TOTAL_WIDTH = SIDEPANEL_WIDTH + SIMULATION_WIDTH;
     class Private;
     std::unique_ptr<Private> m_p;
 };

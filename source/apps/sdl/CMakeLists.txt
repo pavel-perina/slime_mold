@@ -43,3 +43,4 @@ else()
     target_link_options(slime_mold_js PRIVATE ${EMSCRIPTEN_COMMON_FLAGS})
 
 endif()
+

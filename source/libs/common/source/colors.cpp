@@ -1,7 +1,7 @@
 ﻿#include "common/colors.h"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <numbers>
 
 namespace {

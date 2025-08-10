@@ -5,18 +5,18 @@
 #include "colors.h"
 
 #include <array>
-#include <string>
+#include <string_view>
 #include <vector>
 
 
 struct PalettePreset {
-    std::string name;
+    std::string_view name;
     std::array<ColorRGB, 3> palette;
 };
 
 
 struct AgentPreset {
-    std::string name;
+    std::string_view name;
     float sensor_angle, sensor_dist, turn_angle, step_size, evaporate;
     float palette_mid;
 };

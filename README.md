@@ -18,8 +18,6 @@ More is in my [blog article](https://www.pavelp.cz/posts/eng-random-chatgpt-code
 
 ## Build instructions 
 
-Note: as of 2025-08-04 this code uses AVX2 instructions, which is supported by Intel/AMD CPUs from 2015 or so.
-
 ### Windows, Conan
 
 
@@ -80,4 +78,9 @@ emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release
 cmake --build build-emscripten --config Release
 python -m http.server --bind "::" 9000 -d build-emscripten/apps/sdl
 ```
+### Additional info
 
+Code may use AVX2 instructions for exponential decay and applying color palette.
+These can be enabled by USE_AVX2=1 in CMake cache.
+
+After cleaning CMake cache, `conan_install.bat` is sometimes (always?) needed.
