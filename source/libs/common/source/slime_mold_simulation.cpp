@@ -11,7 +11,7 @@
 #include <immintrin.h>
 #endif
 
-#define DO_SORTING 0
+#define DO_SORTING 1
 
 namespace {
 
@@ -104,7 +104,7 @@ void SlimeMoldSimulation::Private::clearField()
 }
 
 
-float SlimeMoldSimulation::Private::sampleField(float x, float y) const
+inline float SlimeMoldSimulation::Private::sampleField(float x, float y) const
 {
     const int xi = ((int)(x + 0.5f) +  m_width) % m_width;
     const int yi = ((int)(y + 0.5f) + m_height) % m_height;
@@ -113,7 +113,7 @@ float SlimeMoldSimulation::Private::sampleField(float x, float y) const
 }
 
 
-void SlimeMoldSimulation::Private::deposit(const Agent& a) {
+inline void SlimeMoldSimulation::Private::deposit(const Agent& a) {
     const int xi = ((int)(a.x + 0.5f) +  m_width) % m_width;
     const int yi = ((int)(a.y + 0.5f) + m_height) % m_height;
     const int idx = yi * m_width + xi;
@@ -186,8 +186,11 @@ void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
         if (a.y < 0)         a.y += m_height;
         if (a.y >= m_height) a.y -= m_height;
 
+    }
+    for (const auto& a : m_agents) {
         deposit(a);
     }
+
 
     ++m_passes;
 #if DO_SORTING
