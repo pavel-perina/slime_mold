@@ -210,7 +210,7 @@ void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
         }
 #endif
 
-
+#if 0
         // Adjust angle
         if (c > l && c > r) {
             // keep direction
@@ -229,7 +229,20 @@ void SlimeMoldSimulation::Private::updateAgents(const AgentPreset &p) {
                 rotate(a.dx, a.dy, TURN_RIGHT_COS, TURN_RIGHT_SIN);
             }
         }
+#else
+        // Branchless turn decision
+        int c_wins = ((c > l) & (c > r)) | (l == r);
+        int l_gt_r = (l > r);
+        //int r_gt_l = (r > l);
 
+        int go_left  = !c_wins & l_gt_r;
+        int go_right = !c_wins & !l_gt_r;
+
+        float cos_val = c_wins ? 1.0f : TURN_RIGHT_COS;
+        float sin_val = (go_left - go_right) * TURN_LEFT_SIN;
+
+        rotate(a.dx, a.dy, cos_val, sin_val);
+#endif
         // Move
         a.x += a.dx * step_size;
         a.y += a.dy * step_size;
