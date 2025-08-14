@@ -6,11 +6,13 @@
 |____/|_|_|_| |_| |_|\___|_|  |_|\___/|_|\__,_|
 ```
 
-This is basically AI generated slime mold simulator. I never used ImGui or SDL libraries, but it evolved this way.
+This was originally AI generated slime mold simulator. I never used ImGui or SDL libraries, but it evolved this way.
 I just randomly asked ChatGPT to create it, use SDL cause I wanted to try it for other project anyways, then it
 was upgraded to SDL3 and ImGui was added.
 
-Optimizations were done by me. 
+Later it was changed from a single file project to view-model-viewmodel architecture and served as learning project.
+Structure evolved from shared global variables into something that we use professionally at work.
+It uses CMake and Conan (only on Windows) and currently it can be build for Linux, Windows and WebAssembly targets.
 
 More is in my [blog article](https://www.pavelp.cz/posts/eng-random-chatgpt-code/) with initial, more simple code.
 
@@ -74,13 +76,18 @@ build/apps/sdl/slime_mold
 ```sh
 # Set environment (once per shell session)
 source ~/emsdk/emsdk_env.sh
+# Configure
 emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release
+# Build
 cmake --build build-emscripten --config Release
+# Serve on all network interfaces, port 9000
 python -m http.server --bind "::" 9000 -d build-emscripten/apps/sdl
 ```
-### Additional info
+## Additional notes
 
-Code may use AVX2 instructions for exponential decay and applying color palette.
-These can be enabled by USE_AVX2=1 in CMake cache.
+Code may use AVX2 instruction set for exponential decay and applying color palette.
+These can be enabled by `USE_AVX2=1` in CMake cache. However speed improvement can
+be minor (negligible on Ryzen 5900X, some on notebook with Intel Ultra7 when it does
+not run on battery)
 
 After cleaning CMake cache, `conan_install.bat` is sometimes (always?) needed.
