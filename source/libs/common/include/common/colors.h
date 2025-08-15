@@ -1,23 +1,64 @@
-﻿//! \file colors.h
+﻿// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2025 Pavel Perina <pavel.perina@gmail.com>
+
+//! \file   colors.h
 //! \author Pavel Perina
-//! \date July 2025
+//! \date   July 2025
+//! \brief  Color space conversions and gradient generation
 
 #pragma once
 
 #include <vector>
 
-struct ColorRGB { float r, g, b; };
-struct ColorLAB { float L, a, b; };
-struct ColorLCH { float L, C, H; };
+/***************************************************************************
+Useful links
 
-extern ColorLAB LCHtoLAB(const ColorLCH& lch);
-extern ColorLCH LABtoLCH(const ColorLAB& lab);
+Color space comparison
+* https://codepen.io/web-dot-dev/pen/QWBxmxv - Gradient color spaces exploration
 
-extern ColorRGB LABtoRGB(const ColorLAB& lab);
-extern ColorLAB RGBtoLAB(const ColorRGB& rgb);
+About OkLAB/OkLCH:
+* https://bottosson.github.io/posts/oklab/#oklab-implementations - Authors page
+* https://bottosson.github.io/posts/colorpicker/ - Authors proposed HSL/HSV-like color picker
+* https://evilmartians.com/chronicles/oklch-in-css-why-quit-rgb-hsl - describes advantages for web design
+* https://lch.oklch.com/#0.5,24.17,92.4,100 - (Ok)LCH color picker
 
-using GradientFunction = std::vector<ColorRGB>(*)(const ColorRGB&, const ColorRGB&, std::size_t);
+***************************************************************************/
 
-extern std::vector<ColorRGB> LCHGradient(const ColorRGB& startRGB, const ColorRGB& endRGB, std::size_t length);
-extern std::vector<ColorRGB> LABGradient(const ColorRGB& startRGB, const ColorRGB& endRGB, std::size_t length);
-extern std::vector<ColorRGB> RGBGradient(const ColorRGB& startRGB, const ColorRGB& endRGB, std::size_t length);
+namespace color {
+
+    // ==== Structures ====================================================
+
+    // NOTE: in range 0..1
+    struct Rgb    { float r, g, b; };
+
+    // NOTE: L 0..100
+    struct CieLab { float L, a, b; };
+    struct CieLch { float L, C, H; };
+
+    // NOTE: L 0..1
+    struct OkLab  { float L, a, b; };
+    struct OkLch  { float L, C, H; };
+
+    // ==== Conversions ===================================================
+
+    extern CieLab cieLchToLab(const CieLch& lch);
+    extern CieLch cieLabToLch(const CieLab& lab);
+    extern CieLab cieLabFromRgb(const Rgb& rgb);
+    extern Rgb    cieLabToRgb(const CieLab& lab);
+
+    extern OkLab  okLchToLab(const OkLch& lch);
+    extern OkLch  okLabToLch(const OkLab& lab);
+    extern OkLab  okLabFromRgb(const Rgb& rgb);
+    extern Rgb    okLabToRgb(const OkLab& lab);
+
+    // ==== Gradient Functions ============================================
+
+    using GradientFunction = std::vector<Rgb>(*)(const Rgb&, const Rgb&, std::size_t);
+
+    extern std::vector<Rgb> gradientRgb   (const Rgb& startRgb, const Rgb& endRgb, std::size_t length);
+    extern std::vector<Rgb> gradientCieLab(const Rgb& startRgb, const Rgb& endRgb, std::size_t length);
+    extern std::vector<Rgb> gradientCieLch(const Rgb& startRgb, const Rgb& endRgb, std::size_t length);
+    extern std::vector<Rgb> gradientOkLab (const Rgb& startRgb, const Rgb& endRgb, std::size_t length);
+    extern std::vector<Rgb> gradientOkLch (const Rgb& startRgb, const Rgb& endRgb, std::size_t length);
+
+} // namespace color

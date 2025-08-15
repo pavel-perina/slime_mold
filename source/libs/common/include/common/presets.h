@@ -11,7 +11,7 @@
 
 struct PalettePreset {
     std::string_view name;
-    std::array<ColorRGB, 3> palette;
+    std::array<color::Rgb, 3> palette;
 };
 
 

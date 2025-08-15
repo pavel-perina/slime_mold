@@ -12,8 +12,10 @@ class SlimeMoldViewModel final
 public:
     enum CMapInterpolation {
         CMAP_INTERP_RGB,
-        CMAP_INTERP_LAB,
-        CMAP_INTERP_LCH,
+        CMAP_INTERP_CIELAB,
+        CMAP_INTERP_CIELCH,
+        CMAP_INTERP_OKLAB,
+        CMAP_INTERP_OKLCH,
         CMAP_INTERP_END
     };
 
@@ -30,8 +32,8 @@ public:
     AgentPreset agent() const;
     void setAgent(const AgentPreset&);
 
-    std::array<ColorRGB, 3> palette() const;
-    void setPalette(const std::array<ColorRGB, 3>&);
+    std::array<color::Rgb, 3> palette() const;
+    void setPalette(const std::array<color::Rgb, 3>&);
 
     void updatePixels(uint8_t* pixels);
     void reset();

@@ -11,13 +11,13 @@ public:
     //! Simulation
     SlimeMoldSimulation sim;
 
-    size_t cmapInterpolation = CMAP_INTERP_LCH;
+    size_t cmapInterpolation = CMAP_INTERP_OKLCH;
     size_t selectedPreset = 0;
     size_t selectedPalette = 0;
     static const std::array<const char*, 3> cmapLabels;
 
     static constexpr size_t PALETTE_SIZE = 1024;
-    std::array<ColorRGB, 3> palette = { {
+    std::array<color::Rgb, 3> palette = { {
         { 0.31f, 0.14f, 0.33f },
         { 0.87f, 0.85f, 0.65f },
         { 0.54f, 0.99f, 0.77f },
@@ -54,18 +54,25 @@ SlimeMoldViewModel::Private::Private(size_t width, size_t height)
 std::vector<uint8_t> SlimeMoldViewModel::Private::preparePalette()
 {
     size_t mid = (size_t)(agent.palette_mid * PALETTE_SIZE);
-    GradientFunction gradientFn = nullptr;
+    color::GradientFunction gradientFn = nullptr;
     switch (cmapInterpolation)
     {
     case CMAP_INTERP_RGB:
-        gradientFn = RGBGradient;
+        gradientFn = color::gradientRgb;
         break;
-    case CMAP_INTERP_LAB:
-        gradientFn = LABGradient;
+    case CMAP_INTERP_CIELAB:
+        gradientFn = color::gradientCieLab;
         break;
-    case CMAP_INTERP_LCH:
+    case CMAP_INTERP_CIELCH:
+        gradientFn = color::gradientCieLch;
+        break;
+    case CMAP_INTERP_OKLAB:
+        gradientFn = color::gradientOkLab;
+        break;
+    case CMAP_INTERP_OKLCH:
     default:
-        gradientFn = LCHGradient;
+        gradientFn = color::gradientOkLch;
+        break;
     }
     auto g1 = gradientFn(palette[0], palette[1], mid);
     auto g2 = gradientFn(palette[1], palette[2], PALETTE_SIZE - mid);
@@ -136,13 +143,13 @@ void SlimeMoldViewModel::setAgent(const AgentPreset& a)
 }
 
 
-std::array<ColorRGB, 3> SlimeMoldViewModel::palette() const
+std::array<color::Rgb, 3> SlimeMoldViewModel::palette() const
 {
     return m_p->palette;
 }
 
 
-void SlimeMoldViewModel::setPalette(const std::array<ColorRGB, 3>& pal)
+void SlimeMoldViewModel::setPalette(const std::array<color::Rgb, 3>& pal)
 {
     m_p->palette = pal;
 }
