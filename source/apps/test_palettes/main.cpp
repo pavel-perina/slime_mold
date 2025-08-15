@@ -65,10 +65,11 @@ int main()
 
     std::vector<std::tuple<std::string, color::Rgb, color::Rgb>> gradients = {
         { "Blue to white", { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f } },
-        { "Blue to gray", { 0.0f, 0.0f, 1.0f }, { 0.5f, 0.5f, 0.5f } },
         { "Blue to black", { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } },
         { "Red to green",  { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
         { "Red to blue",  { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } },
+        { "Blue to green",  { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f } },
+        { "Red to white", { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } },
         { "Purple to gold",  { 0.5f, 0.0f, 0.5f }, { 1.0f, 0.84f, 0.0f } },
     };
     for (const auto& gradient : gradients) {

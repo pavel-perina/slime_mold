@@ -1,5 +1,5 @@
 ﻿// SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: 2025 Pavel Perina <pavel.perina@gmail.com>
+// SPDX-FileCopyrightText: 2025 Pavel Perina
 
 //! \file   colors.h
 //! \author Pavel Perina
@@ -17,10 +17,10 @@ Color space comparison
 * https://codepen.io/web-dot-dev/pen/QWBxmxv - Gradient color spaces exploration
 
 About OkLAB/OkLCH:
-* https://bottosson.github.io/posts/oklab/#oklab-implementations - Authors page
-* https://bottosson.github.io/posts/colorpicker/ - Authors proposed HSL/HSV-like color picker
+* https://bottosson.github.io/posts/oklab/ - Author's page
+* https://bottosson.github.io/posts/colorpicker/ - Author's proposed HSL/HSV-like color picker
 * https://evilmartians.com/chronicles/oklch-in-css-why-quit-rgb-hsl - describes advantages for web design
-* https://lch.oklch.com/#0.5,24.17,92.4,100 - (Ok)LCH color picker
+* https://lch.oklch.com/#0.5,24.17,92.4,100 - (Ok,Cie)LCH color picker
 
 ***************************************************************************/
 

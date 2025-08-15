@@ -239,7 +239,7 @@ std::vector<Rgb> gradientCieLch(const Rgb& startRgb, const Rgb& endRgb, std::siz
 
     const CieLch startLch = cieLabToLch(cieLabFromRgb(startRgb));
     const CieLch endLch   = cieLabToLch(cieLabFromRgb(endRgb));
-    if (startLch.C < 1.0e-3 || endLch.C < 1.0e-3) {
+    if (startLch.C < 0.015 || endLch.C < 0.015) { // includes white
         return gradientCieLab(startRgb, endRgb, length);
     }
 

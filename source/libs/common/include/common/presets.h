@@ -1,4 +1,5 @@
 //! \file presets.h
+//! \brief Agent and colormap presets
 
 #pragma once
 
