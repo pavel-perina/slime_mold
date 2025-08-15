@@ -17,17 +17,18 @@ const std::vector<AgentPreset>& presetAgents() {
 }
 
 const std::vector<PalettePreset>& presetPalettes() {
-    static const std::vector<PalettePreset> presets {
+    static const std::vector<PalettePreset> presets{
         { "Candy Shop", {{ { 0.31f, 0.14f, 0.33f }, { 0.87f, 0.85f, 0.65f }, { 0.54f, 0.99f, 0.77f }}} },
         { "Biolab", {{{0.12f, 0.07f, 0.15f}, {0.10f, 0.31f, 0.20f}, {0.87f, 0.93f, 0.53f}}} },
         { "Forest", {{{0.13f, 0.11f, 0.0f}, {0.4f, 0.7f, 0.2f}, {0.9f, 1.0f, 0.6f}}} },
         { "Tropical Reef", {{{0.05f, 0.10f, 0.20f}, {0.15f, 0.70f, 0.60f}, {0.95f, 0.90f, 0.55f}}} },
         { "Deep Ocean", {{{0.0f, 0.1f, 0.3f}, {0.2f, 0.6f, 0.8f}, {0.95f, 0.95f, 0.8f}}} },
-        { "Glacier", {{{0.0f, 0.07f, 0.12f}, {0.3f, 0.55f, 0.7f}, {0.95f, 0.98f, 1.0f}}} },
+        { "Cold Snap", {{{0.0f, 0.07f, 0.12f}, {0.3f, 0.55f, 0.7f}, {0.95f, 0.98f, 1.0f}}} },
         { "Amethyst Dawn",{{{0.18f, 0.08f, 0.25f}, {0.65f, 0.40f, 0.55f}, {0.95f, 0.88f, 0.80f}}} },
         { "Rosewood Sky", {{{0.15f, 0.05f, 0.07f}, {0.40f, 0.30f, 0.55f}, {0.92f, 0.88f, 0.98f}}} },
-        { "Fire", {{{0.15f, 0.0f, 0.15f}, {0.8f, 0.5f, 0.3f}, {1.0f, 0.9f, 0.66f}}} },
-        { "Magma", {{{ 0.22f, 0.05f, 0.27f}, { .8f, .66f,.2f}, { .985f, 0.985f, 0.7f}}} },
+        { "Neon Rust", {{{.2f, 0.07f, 0.037f}, {0.72f, 0.41f, 0.17f}, {0.6f,.95f, 0.94f}}} },
+        { "Heat Wave", {{{0.15f, 0.0f, 0.15f}, {0.8f, 0.5f, 0.3f}, {1.0f, 0.9f, 0.66f}}} },
+        { "Core Meltdown", {{{ 0.22f, 0.05f, 0.27f}, { .8f, .66f,.2f}, { .985f, 0.985f, 0.7f}}} },
     };
     return presets;
 }

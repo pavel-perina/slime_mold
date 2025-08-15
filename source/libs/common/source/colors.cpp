@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cmath>
 
 namespace {
@@ -234,7 +233,11 @@ Rgb okLabToRgb(const OkLab& lab)
 
 std::vector<Rgb> gradientCieLch(const Rgb& startRgb, const Rgb& endRgb, std::size_t length)
 {
-    assert(length > 1);
+    if (length == 0)
+        return {};
+    if (length == 1)
+        return { startRgb };
+
     std::vector<Rgb> gradient(length);
 
     const CieLch startLch = cieLabToLch(cieLabFromRgb(startRgb));
@@ -260,7 +263,11 @@ std::vector<Rgb> gradientCieLch(const Rgb& startRgb, const Rgb& endRgb, std::siz
 
 std::vector<Rgb> gradientOkLch(const Rgb& startRgb, const Rgb& endRgb, std::size_t length)
 {
-    assert(length > 1);
+    if (length == 0)
+        return {};
+    if (length == 1)
+        return { startRgb };
+
     std::vector<Rgb> gradient(length);
 
     const OkLch startLch = convLabToLch<OkLch, OkLab>(okLabFromRgb(startRgb));
@@ -287,6 +294,9 @@ std::vector<Rgb> gradientOkLch(const Rgb& startRgb, const Rgb& endRgb, std::size
 
 std::vector<Rgb> gradientCieLab(const Rgb& startRgb, const Rgb& endRgb, std::size_t length)
 {
+    if (length == 1)
+        return { startRgb };
+
     std::vector<Rgb> gradient(length);
 
     CieLab startLab = cieLabFromRgb(startRgb);
@@ -310,6 +320,9 @@ std::vector<Rgb> gradientCieLab(const Rgb& startRgb, const Rgb& endRgb, std::siz
 
 std::vector<Rgb> gradientOkLab(const Rgb& startRgb, const Rgb& endRgb, std::size_t length)
 {
+    if (length == 1)
+        return { startRgb };
+
     std::vector<Rgb> gradient(length);
 
     OkLab startLab = okLabFromRgb(startRgb);
@@ -334,6 +347,8 @@ std::vector<Rgb> gradientOkLab(const Rgb& startRgb, const Rgb& endRgb, std::size
 std::vector<Rgb> gradientRgb(const Rgb& startRgb, const Rgb& endRgb, std::size_t length)
 {
     std::vector<Rgb> gradient(length);
+    if (length == 1)
+        return { startRgb };
 
     for (size_t i = 0; i < length; ++i) {
         float t = (float)i / (length - 1);
