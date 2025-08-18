@@ -1,6 +1,7 @@
 //! \file main.cpp
 
 #include <algorithm>
+#include <array>
 #include <print>
 #include <string>
 
@@ -11,8 +12,9 @@
 #include <windows.h>
 #endif
 
+
 // Convert RGB to ANSI 24-bit color escape code
-static std::string rgbToEscapeCode(const color::Rgb& rgb)
+static std::string escRgb(const color::Rgb& rgb)
 {
     // Clamp and scale to 0-255
     int r = static_cast<int>(std::clamp(rgb.r, 0.0f, 1.0f) * 255);
@@ -29,35 +31,43 @@ int main()
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
-    const std::array<std::pair<std::string, color::GradientFunction>, 5> gradFuncs ({
+    // gradient steps (preferably even to make result symmetric)
+    constexpr size_t gradientSteps = 55;
+    constexpr std::string_view blockChar = "\xE2\x96\x88";
+    constexpr std::string_view escWhite  = "\x1b[37;1m";
+    constexpr std::string_view escGray   = "\x1b[37;0m";
+    constexpr std::string_view escReset  = "\x1b[0m";
+
+    const auto &palettes = presetPalettes();
+    constexpr auto gradFuncs = std::to_array<std::pair<std::string_view, color::GradientFunction>> ({
         { "   RGB", color::gradientRgb    },
         { "CieLAB", color::gradientCieLab },
         { " OkLAB", color::gradientOkLab  },
         { "CieLCH", color::gradientCieLch },
         { " OkLCH", color::gradientOkLch  }
     });
-    const auto &palettes = presetPalettes();
 
+    // === Render gradients for each preset palette ===
     for (const auto& preset : palettes) {
-        std::println("\x1b[37;1m{}:\x1b[0m", preset.name);
-        const auto& c0 = preset.palette[0];
-        const auto& c1 = preset.palette[1];
-        const auto& c2 = preset.palette[2];
+        std::println("{}{}:{}", escWhite, preset.name, escReset);
         for (const auto& [gradLabel, gradFn] : gradFuncs) {
-            std::print("\x1b[37;0m{}  ", gradLabel);
-            auto cmap1 = gradFn(c0, c1, 32);
-            for (int i = 0; i < 32; ++i) {
-                std::print("{}\xE2\x96\x88", rgbToEscapeCode(cmap1[i]));
+            std::print("{}{}  ", escGray, gradLabel);
+	    constexpr size_t gradientHalfLength = (gradientSteps+1)/2;
+            auto cmap1 = gradFn(preset.palette[0], preset.palette[1], gradientHalfLength);
+            for (int i = 0; i < gradientHalfLength; ++i) {
+                std::print("{}{}", escRgb(cmap1[i]), blockChar);
             }
-            auto cmap2 = gradFn(c1, c2, 32);
-            for (int i = 1; i < 32; ++i) {
-                std::print("{}\xE2\x96\x88", rgbToEscapeCode(cmap2[i]));
+            auto cmap2 = gradFn(preset.palette[1], preset.palette[2], gradientHalfLength);
+	    // do not repeat color at midpoint
+            for (int i = 1; i < gradientHalfLength; ++i) {
+                std::print("{}{}", escRgb(cmap2[i]), blockChar);
             }
-            std::println("\x1b[0m"); // reset color
+            std::println(escReset);
         }
     }
 
-    std::vector<std::tuple<std::string, color::Rgb, color::Rgb>> gradients ({
+    // === Render gradients for custom two-color test cases ===
+    constexpr auto gradients = std::to_array<std::tuple<std::string_view, color::Rgb, color::Rgb>> ({
         { "Blue to white",  { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f } },
         { "Blue to black",  { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } },
         { "Red to green",   { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
@@ -66,17 +76,19 @@ int main()
         { "Red to white",   { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } },
         { "Purple to gold", { 0.5f, 0.0f, 0.5f }, { 1.0f, .84f, 0.0f } },
     });
+
     for (const auto& [gradLabel, color1, color2] : gradients) {
-        std::println("\x1b[37;1m{}:\x1b[0m", gradLabel);
+        std::println("{}{}:{}", escWhite, gradLabel, escReset);
         for (const auto& [gradFnLabel, gradFn] : gradFuncs) {
-            std::print("{} ", gradFnLabel);
-            auto cmap = gradFn(color1, color2, 32);
-            for (int i = 0; i < 32; ++i) {
-                std::print("{}\xE2\x96\x88", rgbToEscapeCode(cmap[i]));
+            std::print("{}{}  ", escGray, gradFnLabel);
+            auto cmap = gradFn(color1, color2, gradientSteps);
+            for (int i = 0; i < gradientSteps; ++i) {
+                std::print("{}{}", escRgb(cmap[i]), blockChar);
             }
-            std::println("\x1b[0m"); // reset color
+            std::println(escReset);
         }
     }
 
     return 0;
 }
+

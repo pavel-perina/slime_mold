@@ -32,7 +32,6 @@ else()
     target_include_directories(slime_mold_html PRIVATE ${SLIME_MOLD_INCLUDE_DIRS})
     target_link_options(slime_mold_html PRIVATE
         ${EMSCRIPTEN_COMMON_FLAGS}
-        --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/shell-minimal.html
     )
 
     # JS-only target (for embedding)
