@@ -100,12 +100,32 @@ bool Ui::done() const noexcept
 }
 
 
+void Ui::processEvent(union SDL_Event* e)
+{
+#if 0
+    SDL_Log("Event %d", e->type);
+#endif    
+    ImGui_ImplSDL3_ProcessEvent(e);
+    if (e->type == SDL_EVENT_QUIT) {
+        m_p->done = true;
+    }
+#if 0
+    if (   e->type == SDL_EVENT_MOUSE_MOTION 
+        || e->type == SDL_EVENT_MOUSE_BUTTON_DOWN
+        || e->type == SDL_EVENT_MOUSE_BUTTON_UP
+    ) {
+        SDL_Log("Mouse event: type=%d x=%f y=%f", e->type, e->motion.x, e->motion.y);
+    }
+#endif
+}
+
+
 void Ui::frame() 
 {
+    // Make references for easy access, copy agent
     auto& vm = m_p->viewModel;
     auto& agent = m_p->agent;
     agent = vm.agent();
-
 
     // Do simulation step
     vm.updatePixels(m_p->pixels.data());
@@ -240,13 +260,5 @@ void Ui::frame()
     // Render ImGui on top
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), m_p->renderer);
     SDL_RenderPresent(m_p->renderer);
-
-    // Handle quit
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        ImGui_ImplSDL3_ProcessEvent(&e);
-        if (e.type == SDL_EVENT_QUIT)
-            m_p->done = true;
-    }
 
 } // Ui::frame method

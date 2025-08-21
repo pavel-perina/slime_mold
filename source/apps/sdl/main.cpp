@@ -26,6 +26,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
     // Handle events directly if needed
+    g_ui->processEvent(event);
     return SDL_APP_CONTINUE;
 }
 

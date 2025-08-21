@@ -17,6 +17,9 @@ public:
     //! \brief Render next frame
     void frame();
 
+    //! \brief Process event
+    void processEvent(union SDL_Event*);
+
     //! \brief Check if done (closed window)
     [[nodiscard]] bool done() const noexcept;
 
