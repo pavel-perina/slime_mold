@@ -33,6 +33,9 @@ public:
     std::vector<uint8_t> pixels;
 
     uint64_t last_counter = 0;
+
+    // Holds copy of agent for ImGUI updates
+    AgentPreset agent;
 };
 
 
@@ -99,7 +102,10 @@ bool Ui::done() const noexcept
 
 void Ui::frame() 
 {
-    auto &vm = m_p->viewModel;
+    auto& vm = m_p->viewModel;
+    auto& agent = m_p->agent;
+    agent = vm.agent();
+
 
     // Do simulation step
     vm.updatePixels(m_p->pixels.data());
@@ -130,7 +136,6 @@ void Ui::frame()
     ImGui::Separator();
     ImGui::Spacing();
 
-    AgentPreset agent = vm.agent();
     ImGui::Text("Sensor Angle");
     if (ImGui::SliderFloat("##sensor_angle", &agent.sensor_angle, 0.0f, 2.0f)) { 
         vm.setAgent(agent);
